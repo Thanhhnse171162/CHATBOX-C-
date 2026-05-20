@@ -18,6 +18,7 @@ body {
   font-family: "Inter", sans-serif;
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
 
 .hidden {
@@ -112,7 +113,8 @@ body {
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -120,6 +122,7 @@ body {
   background: var(--panel);
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .sidebar-head {
@@ -189,6 +192,7 @@ body {
 .users-list {
   overflow-y: auto;
   border-top: 1px solid var(--line);
+  min-height: 0;
 }
 
 .user-item {
@@ -236,6 +240,10 @@ body {
 .chat-panel {
   display: grid;
   grid-template-rows: auto 1fr auto;
+  position: relative;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   background:
     linear-gradient(30deg, #f9fbfd 12%, transparent 12.5%, transparent 87%, #f9fbfd 87.5%, #f9fbfd),
     linear-gradient(150deg, #f9fbfd 12%, transparent 12.5%, transparent 87%, #f9fbfd 87.5%, #f9fbfd),
@@ -283,6 +291,7 @@ body {
 
 .messages {
   overflow-y: auto;
+  min-height: 0;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -325,6 +334,8 @@ body {
 
 .message-text {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message.system {
@@ -355,12 +366,31 @@ body {
   font-size: 12px;
 }
 
+.scroll-to-bottom {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 90px;
+  width: 62px;
+  height: 62px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(71, 85, 105, 0.8);
+  color: #77a0ff;
+  font-size: 34px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.25);
+  z-index: 5;
+}
+
 .composer {
   border-top: 1px solid var(--line);
   background: var(--panel);
   padding: 12px;
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .composer input {
@@ -393,6 +423,7 @@ body {
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
+    height: 100vh;
   }
 
   .sidebar {

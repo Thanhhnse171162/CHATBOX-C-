@@ -24,6 +24,7 @@ const typingStatusEl = document.getElementById("typingStatus");
 const emptyStateEl = document.getElementById("emptyState");
 const loadingOverlayEl = document.getElementById("loadingOverlay");
 const toastEl = document.getElementById("toast");
+const scrollToBottomButtonEl = document.getElementById("scrollToBottomButton");
 
 const state = {
   isRegisterMode: false,
@@ -35,6 +36,28 @@ const state = {
 };
 
 let toastTimerId = null;
+
+function isNearBottom() {
+  const threshold = 80;
+  const distanceToBottom =
+    messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+  return distanceToBottom <= threshold;
+}
+
+function updateScrollToBottomButton() {
+  if (isNearBottom()) {
+    scrollToBottomButtonEl.classList.add("hidden");
+  } else {
+    scrollToBottomButtonEl.classList.remove("hidden");
+  }
+}
+
+function scrollMessagesToBottom(behavior = "auto") {
+  messagesEl.scrollTo({
+    top: messagesEl.scrollHeight,
+    behavior
+  });
+}
 
 function setLoading(isLoading) {
   loadingOverlayEl.classList.toggle("hidden", !isLoading);
@@ -105,11 +128,15 @@ function addMessageNode(message) {
 }
 
 function renderMessages() {
+  const shouldStickBottom = isNearBottom();
   const messageList = getActiveMessages();
   messagesEl.innerHTML = "";
   messageList.forEach(addMessageNode);
   emptyStateEl.classList.toggle("hidden", messageList.length > 0);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  if (shouldStickBottom) {
+    scrollMessagesToBottom();
+  }
+  updateScrollToBottomButton();
 }
 
 function renderTypingStatus() {
@@ -258,6 +285,14 @@ logoutButtonEl.addEventListener("click", () => {
   showToast("Logged out.");
 });
 
+messagesEl.addEventListener("scroll", () => {
+  updateScrollToBottomButton();
+});
+
+scrollToBottomButtonEl.addEventListener("click", () => {
+  scrollMessagesToBottom("smooth");
+});
+
 function initRealtimeSubscriptions() {
   chatService.subscribe({
     onMessage: (message) => {
@@ -270,7 +305,12 @@ function initRealtimeSubscriptions() {
           ? { ...item, lastMessage: message.text }
           : item
       );
-      renderAll();
+      if (message.conversationId === state.activeConversationId) {
+        renderMessages();
+      }
+      renderConversations(searchInputEl.value);
+      renderHeader();
+      renderTypingStatus();
     },
     onPresence: (conversations) => {
       state.conversations = conversations;
