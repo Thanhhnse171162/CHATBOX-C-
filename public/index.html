@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realtime Chat Box</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="authScreen" class="auth-screen">
+      <div class="auth-card">
+        <h2 id="authTitle">Sign In</h2>
+        <p class="auth-subtitle">Chat 1-1 with your team in realtime.</p>
+        <form id="authForm" class="auth-form">
+          <input id="authName" type="text" placeholder="Full name" />
+          <input id="authEmail" type="email" placeholder="Email" required />
+          <input id="authPassword" type="password" placeholder="Password" required />
+          <button id="authSubmit" type="submit">Sign In</button>
+        </form>
+        <button id="authToggle" class="auth-toggle" type="button">
+          No account? Register
+        </button>
+      </div>
+    </div>
+
+    <div id="chatApp" class="layout hidden">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <div class="sidebar-head-top">
+            <h1>Messages</h1>
+            <button id="logoutButton" class="logout-button" type="button">Logout</button>
+          </div>
+          <div id="currentUser" class="current-user"></div>
+        </div>
+
+        <div class="search-box">
+          <input id="searchInput" type="text" placeholder="Search conversations..." />
+        </div>
+
+        <div class="tabs">
+          <button class="tab active">Chats</button>
+          <button class="tab">Contacts</button>
+          <button class="tab">Calls</button>
+          <button class="tab">Settings</button>
+        </div>
+
+        <div id="usersList" class="users-list"></div>
+      </aside>
+
+      <main class="chat-panel">
+        <header class="chat-header">
+          <div id="chatAvatar" class="avatar">💬</div>
+          <div>
+            <div id="chatTitle" class="chat-title">Select a conversation</div>
+            <div id="chatStatus" class="status">Offline</div>
+          </div>
+        </header>
+
+        <section id="messages" class="messages"></section>
+        <div id="emptyState" class="empty-state hidden">
+          <h3>No messages yet</h3>
+          <p>Start the conversation by sending your first message.</p>
+        </div>
+        <div id="typingStatus" class="typing-status"></div>
+
+        <form id="chatForm" class="composer">
+          <input
+            id="messageInput"
+            type="text"
+            placeholder="Type a message..."
+            autocomplete="off"
+            disabled
+          />
+          <button id="sendButton" type="submit" disabled>Send</button>
+        </form>
+      </main>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <div class="loading-card">Loading...</div>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="./services/chat.service.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
