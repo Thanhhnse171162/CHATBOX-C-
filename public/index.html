@@ -1,96 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Realtime Chat Box</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <div id="authScreen" class="auth-screen">
-      <div class="auth-card">
-        <h2 id="authTitle">Sign In</h2>
-        <p class="auth-subtitle">Chat 1-1 with your team in realtime.</p>
-        <form id="authForm" class="auth-form">
-          <input id="authName" type="text" placeholder="Full name" />
-          <input id="authEmail" type="email" placeholder="Email" required />
-          <input id="authPassword" type="password" placeholder="Password" required />
-          <button id="authSubmit" type="submit">Sign In</button>
-        </form>
-        <button id="authToggle" class="auth-toggle" type="button">
-          No account? Register
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Realtime Chat Box</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <h2 id="authTitle">Sign In</h2>
+      <p class="auth-subtitle">Chat 1-1 with your team in realtime.</p>
+      <form id="authForm" class="auth-form">
+        <input id="authName" type="text" placeholder="Full name" />
+        <input id="authEmail" type="email" placeholder="Email" required />
+        <input id="authPassword" type="password" placeholder="Password" required />
+        <button id="authSubmit" type="submit">Sign In</button>
+      </form>
+      <button id="authToggle" class="auth-toggle" type="button">
+        No account? Register
+      </button>
+    </div>
+  </div>
+
+  <div id="chatApp" class="layout hidden">
+    <!-- Left Sidebar (Navigation) -->
+    <aside class="sidebar-left">
+      <div class="user-profile">
+        <div class="avatar-img-wrapper">
+          <img src="https://i.pravatar.cc/150?u=myaccount" alt="Avatar" class="avatar-img" id="userAvatarImg">
+        </div>
+        <div class="user-info">
+          <div class="user-name" id="currentUser">My Account</div>
+          <div class="user-status"><span class="status-dot"></span> Online</div>
+        </div>
+      </div>
+      <div class="new-message-container">
+        <button class="btn-primary w-100" type="button">
+          <i class="ph-bold ph-plus"></i> New Message
         </button>
       </div>
-    </div>
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active">
+          <i class="ph-fill ph-chat-teardrop-text"></i>
+          <span>Messages</span>
+          <span class="badge" id="unreadBadge">0</span>
+        </a>
+        <a href="#" class="nav-item" id="createGroupBtn">
+          <i class="ph ph-users"></i>
+          <span>Create Group</span>
+        </a>
+        <a href="#" class="nav-item" id="logoutButton" style="margin-top: auto; color: #64748b;">
+          <i class="ph ph-sign-out"></i>
+          <span>Logout</span>
+        </a>
+      </nav>
+    </aside>
 
-    <div id="chatApp" class="layout hidden">
-      <aside class="sidebar">
-        <div class="sidebar-head">
-          <div class="sidebar-head-top">
-            <h1>Messages</h1>
-            <button id="logoutButton" class="logout-button" type="button">Logout</button>
+    <!-- Middle Sidebar (Chats list) -->
+    <aside class="sidebar-middle">
+      <div class="search-box">
+        <i class="ph ph-magnifying-glass search-icon"></i>
+        <input id="searchInput" type="text" placeholder="Search chats..." />
+      </div>
+      <div id="usersList" class="users-list">
+        <!-- Conversation items will go here -->
+      </div>
+    </aside>
+
+    <!-- Main Chat Panel -->
+    <main class="chat-panel">
+      <header class="chat-header">
+        <div class="header-left">
+          <span id="chatStatus" class="header-status">12 members | Active now</span>
+        </div>
+        <div class="header-right tabs-header" style="align-items: center;">
+          <button class="action-btn" id="btnMute" style="margin-right: 16px;"><i class="ph ph-bell"></i></button>
+          <button class="tab-btn active" id="tabChat">Chat</button>
+          <button class="tab-btn" id="tabFiles">Files</button>
+          <button class="tab-btn" id="tabLinks">Links</button>
+        </div>
+      </header>
+
+      <section id="messages" class="messages">
+        <!-- Messages go here -->
+      </section>
+
+      <section id="filesSection" class="files-view hidden">
+        <div class="media-grid" id="filesGrid"></div>
+      </section>
+
+      <section id="linksSection" class="links-view hidden">
+        <div class="links-list" id="linksList"></div>
+      </section>
+
+      <button id="scrollToBottomButton" class="scroll-to-bottom hidden" type="button">
+        <i class="ph ph-arrow-down"></i>
+      </button>
+      <div id="emptyState" class="empty-state hidden">
+        <h3>No messages yet</h3>
+        <p>Start the conversation by sending your first message.</p>
+      </div>
+      <div id="typingStatus" class="typing-status"></div>
+
+      <form id="chatForm" class="composer">
+        <div class="composer-inner">
+          <div id="recordingUI" class="recording-ui hidden">
+            <button type="button" class="action-btn" id="btnCancelRecord" style="color: var(--danger);"><i
+                class="ph-fill ph-trash"></i></button>
+            <div class="recording-waveform">
+              <div class="waveform-bars">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+              </div>
+              <span id="recordingTimer" class="recording-timer">0:00</span>
+            </div>
+            <button type="button" class="action-btn send-btn" id="btnSendRecord"><i
+                class="ph-fill ph-paper-plane-right"></i></button>
           </div>
-          <div id="currentUser" class="current-user"></div>
-        </div>
 
-        <div class="search-box">
-          <input id="searchInput" type="text" placeholder="Search conversations..." />
-        </div>
+          <input type="text" id="messageInput" class="composer-input" placeholder="Type a message..."
+            autocomplete="off" />
 
-        <div class="tabs">
-          <button class="tab active">Chats</button>
-          <button class="tab">Contacts</button>
-          <button class="tab">Calls</button>
-          <button class="tab">Settings</button>
-        </div>
+          <div class="composer-actions" id="composerActions" style="position: relative;">
+            <input type="file" id="imageInput" accept="image/*" class="hidden" />
+            <input type="file" id="fileInput" class="hidden" />
+            <button type="button" class="action-btn" id="btnImage"><i class="ph ph-image"></i></button>
+            <button type="button" class="action-btn" id="btnAttachment"><i class="ph ph-paperclip"></i></button>
+            <button type="button" class="action-btn" id="btnEmoji"><i class="ph ph-smiley"></i></button>
+            <button type="button" class="action-btn" id="btnRecord"><i class="ph ph-microphone"></i></button>
 
-        <div id="usersList" class="users-list"></div>
-      </aside>
-
-      <main class="chat-panel">
-        <header class="chat-header">
-          <div id="chatAvatar" class="avatar">💬</div>
-          <div>
-            <div id="chatTitle" class="chat-title">Select a conversation</div>
-            <div id="chatStatus" class="status">Offline</div>
+            <div id="emojiPicker" class="emoji-picker hidden">
+              <div class="emoji-grid">
+                <span class="emoji-item">😀</span>
+                <span class="emoji-item">😂</span>
+                <span class="emoji-item">🥰</span>
+                <span class="emoji-item">😎</span>
+                <span class="emoji-item">😭</span>
+                <span class="emoji-item">👍</span>
+                <span class="emoji-item">🎉</span>
+                <span class="emoji-item">❤️</span>
+              </div>
+            </div>
           </div>
-        </header>
-
-        <section id="messages" class="messages"></section>
-        <button id="scrollToBottomButton" class="scroll-to-bottom hidden" type="button">
-          ↓
-        </button>
-        <div id="emptyState" class="empty-state hidden">
-          <h3>No messages yet</h3>
-          <p>Start the conversation by sending your first message.</p>
+          <button id="sendButton" type="submit" class="send-btn">
+            <i class="ph-fill ph-paper-plane-tilt"></i>
+          </button>
         </div>
-        <div id="typingStatus" class="typing-status"></div>
+      </form>
+    </main>
+  </div>
 
-        <form id="chatForm" class="composer">
-          <input
-            id="messageInput"
-            type="text"
-            placeholder="Type a message..."
-            autocomplete="off"
-            disabled
-          />
-          <button id="sendButton" type="submit" disabled>Send</button>
-        </form>
-      </main>
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-card">Loading...</div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="settingsWindow" class="auth-screen hidden"
+    style="position:fixed; inset:0; z-index: 1000; background: rgba(0,0,0,0.5);">
+    <div class="auth-card" style="position: relative;">
+      <h2>Settings</h2>
+      <p><strong>Username:</strong> <span id="settingsUsername"></span></p>
+      <p><strong>Server:</strong> socket.io via Express</p>
+      <button id="closeSettingsBtn"
+        style="margin-top: 15px; width: 100%; border: none; background: var(--primary); color: white; padding: 12px; border-radius: 8px;">Close</button>
     </div>
+  </div>
 
-    <div id="loadingOverlay" class="loading-overlay hidden">
-      <div class="loading-card">Loading...</div>
-    </div>
-    <div id="toast" class="toast hidden"></div>
+  <div id="imageViewer" class="image-viewer-overlay hidden">
+    <div class="close-btn" id="closeImageViewer">&times;</div>
+    <img id="imageViewerImg" src="" alt="View" />
+  </div>
 
-    <script src="./services/chat.service.js"></script>
-    <script src="./app.js"></script>
-  </body>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./services/chat.service.js"></script>
+  <script src="./app.js"></script>
+</body>
+
 </html>

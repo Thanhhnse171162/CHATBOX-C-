@@ -93,7 +93,7 @@
         token: "mock-token",
         user: {
           id: "u-self",
-          name: nameFromEmail,
+          name: payload.name || nameFromEmail,
           email: payload.email
         }
       };
@@ -110,93 +110,118 @@
       };
     },
 
+    disconnect() {
+      if (global.socket) {
+        global.socket.disconnect();
+        global.socket = null;
+      }
+    },
+
     async loadInitialData() {
-      // TODO: Replace this mock with BE API call.
-      // Example:
-      // const res = await fetch("/api/chat/bootstrap");
-      // return res.json();
       return {
-        conversations: [
-          {
-            id: "c1",
-            name: "Alex Rivera",
-            online: true,
-            lastMessage: "Can you share the final Figma?"
-          },
-          {
-            id: "c2",
-            name: "Marcus Chen",
-            online: false,
-            lastMessage: "Thanks for the update!"
-          },
-          {
-            id: "c3",
-            name: "Sarah Wilson",
-            online: true,
-            lastMessage: "Are we still on for today?"
-          }
-        ],
-        activeConversationId: "c1",
+        conversations: [],
+        activeConversationId: "global",
         messagesByConversation: {
-          c1: [
-            {
-              id: "m1",
-              conversationId: "c1",
-              senderId: "u1",
-              senderName: "Alex Rivera",
-              text: "Hey! I finished the preliminary designs for the dashboard project.",
-              time: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-              seen: true
-            },
-            {
-              id: "m2",
-              conversationId: "c1",
-              senderId: "u-self",
-              senderName: getDisplayName(),
-              text: "Great, can you share the Figma link?",
-              time: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-              seen: true
-            },
-            {
-              id: "m3",
-              conversationId: "c1",
-              senderId: "u1",
-              senderName: "Alex Rivera",
-              text: "Sure. Sending it now.",
-              time: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-              seen: false
-            }
-          ],
-          c2: [],
-          c3: []
+          global: []
         }
       };
     },
 
-    async sendMessage(conversationId, text) {
-      // TODO: Replace this mock with BE API call.
-      // Example:
-      // const res = await fetch("/api/chat/messages", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ text })
-      // });
-      // return res.json();
-      return {
-        id: `local-${Date.now()}`,
-        conversationId,
-        senderId: "u-self",
-        senderName: getDisplayName(),
-        text,
-        time: new Date().toISOString(),
-        seen: false
-      };
+    async sendMessage(conversationId, text, attachment = null) {
+      if (global.socket) {
+        global.socket.emit("messages:send", { text, attachment, conversationId });
+      }
+      return null;
     },
 
-    subscribe(_handlers) {
-      // TODO: Bind WebSocket events and call handlers here.
-      // Return unsubscribe function.
-      return function unsubscribe() {};
+    createGroup(name) {
+      if (global.socket) {
+        global.socket.emit("groups:create", name);
+      }
+    },
+
+    async uploadFile(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      return response.json();
+    },
+
+    subscribe(handlers) {
+      if (!global.io) {
+        console.error("Socket.io not loaded");
+        return () => { };
+      }
+
+      const socket = global.io();
+      global.socket = socket;
+
+      if (socket.connected) {
+        socket.emit("user:join", getDisplayName());
+      }
+
+      socket.off("connect");
+      socket.off("users:update");
+      socket.off("messages:history");
+      socket.off("messages:new");
+
+      socket.on("connect", () => {
+        socket.emit("user:join", getDisplayName());
+      });
+
+      socket.on("users:update", (data) => {
+        handlers.onPresence(data);
+      });
+
+      socket.on("messages:history", (roomMessages) => {
+        Object.keys(roomMessages).forEach(roomId => {
+          roomMessages[roomId].forEach(msg => {
+            handlers.onMessage({
+              id: msg.id,
+              conversationId: msg.conversationId || roomId,
+              senderId: msg.sender?.id || "sys",
+              senderName: msg.sender?.name || msg.sender,
+              text: msg.text,
+              attachment: msg.attachment,
+              time: msg.time,
+              seen: true,
+              isSystem: msg.isSystem
+            });
+          });
+        });
+      });
+
+      socket.on("messages:new", (msg) => {
+        handlers.onMessage({
+          id: msg.id,
+          conversationId: msg.conversationId || "global",
+          senderId: msg.sender?.id || "sys",
+          senderName: msg.sender?.name || msg.sender,
+          text: msg.text,
+          attachment: msg.attachment,
+          time: msg.time,
+          seen: true,
+          isSystem: msg.isSystem
+        });
+      });
+
+      return function unsubscribe() {
+        socket.off("connect");
+        socket.off("users:update");
+        socket.off("messages:history");
+        socket.off("messages:new");
+        socket.disconnect();
+        global.socket = null;
+      };
     }
   };
 
