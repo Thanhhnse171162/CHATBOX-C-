@@ -4,10 +4,13 @@ const path = require("path");
 const http = require("http");
 
 const PORT = process.env.PORT || 3000;
+const REMOTE_SERVER = process.env.CHAT_SERVER_URL || "";
+const isClientOnly = Boolean(REMOTE_SERVER);
+const appUrl = isClientOnly ? REMOTE_SERVER : `http://127.0.0.1:${PORT}`;
+
 let serverProcess = null;
 
-function waitForServer(retries = 40) {
-  const url = `http://127.0.0.1:${PORT}`;
+function waitForServer(url, retries = 40) {
   return new Promise((resolve, reject) => {
     let attempt = 0;
     const check = () => {
@@ -19,7 +22,11 @@ function waitForServer(retries = 40) {
         .on("error", () => {
           attempt += 1;
           if (attempt >= retries) {
-            reject(new Error("Khong ket noi duoc server chat."));
+            reject(
+              new Error(
+                `Khong ket noi duoc server: ${url}\nKiem tra may host da mo app va cung mang WiFi.`
+              )
+            );
             return;
           }
           setTimeout(check, 500);
@@ -50,7 +57,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: "Chat Group",
+    title: isClientOnly ? "Chat Group (Client)" : "Chat Group (Host)",
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
@@ -58,13 +65,16 @@ function createWindow() {
     }
   });
 
-  win.loadURL(`http://127.0.0.1:${PORT}`);
+  win.loadURL(appUrl);
 }
 
 app.whenReady().then(async () => {
-  startServer();
+  if (!isClientOnly) {
+    startServer();
+  }
+
   try {
-    await waitForServer();
+    await waitForServer(appUrl);
     createWindow();
   } catch (error) {
     console.error(error.message);
