@@ -2,19 +2,22 @@ const { app, BrowserWindow } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
+const https = require("https");
 
 const PORT = process.env.PORT || 3000;
-const REMOTE_SERVER = process.env.CHAT_SERVER_URL || "";
+const REMOTE_SERVER = (process.env.CHAT_SERVER_URL || "").replace(/\/+$/, "");
 const isClientOnly = Boolean(REMOTE_SERVER);
 const appUrl = isClientOnly ? REMOTE_SERVER : `http://127.0.0.1:${PORT}`;
 
 let serverProcess = null;
 
 function waitForServer(url, retries = 40) {
+  const client = url.startsWith("https:") ? https : http;
+
   return new Promise((resolve, reject) => {
     let attempt = 0;
     const check = () => {
-      http
+      client
         .get(url, (res) => {
           res.resume();
           resolve();
@@ -24,7 +27,7 @@ function waitForServer(url, retries = 40) {
           if (attempt >= retries) {
             reject(
               new Error(
-                `Khong ket noi duoc server: ${url}\nKiem tra may host da mo app va cung mang WiFi.`
+                `Khong ket noi duoc server: ${url}\nKiem tra may HOST da bat app + ngrok (neu khac mang).`
               )
             );
             return;
