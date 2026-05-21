@@ -1,11 +1,11 @@
 {
   "name": "prn222",
   "version": "1.0.0",
-  "description": "Realtime chat box with Socket.IO",
-  "main": "server.js",
+  "description": "Chat Group desktop app",
+  "main": "electron-main.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "electron electron-main.js",
+    "app": "electron electron-main.js"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +16,6 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "electron": "^35.0.0"
   }
 }
