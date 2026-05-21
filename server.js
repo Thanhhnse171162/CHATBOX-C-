@@ -164,6 +164,20 @@ io.on("connection", (socket) => {
   });
 });
 
+// Handle listen errors (e.g., port already in use) gracefully so the
+// main Electron process doesn't crash when this child process cannot bind.
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.warn(`Port ${PORT} already in use.`);
+    console.warn(`Assuming another instance or external server is running on port ${PORT}.`);
+    // Exit with success so the Electron main process can try to connect
+    // to the existing server instead of failing with an uncaught exception.
+    process.exit(0);
+  }
+  console.error("Server error:", err);
+  process.exit(1);
+});
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`LAN: other devices can connect using your PC IP on port ${PORT}`);
