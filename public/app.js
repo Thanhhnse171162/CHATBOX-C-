@@ -20,6 +20,15 @@ const typingStatusEl = document.getElementById("typingStatus");
 const emptyStateEl = document.getElementById("emptyState");
 const loadingOverlayEl = document.getElementById("loadingOverlay");
 const toastEl = document.getElementById("toast");
+const toastMessageEl = document.getElementById("toastMessage");
+const toastProgressWrapEl = document.getElementById("toastProgressWrap");
+const toastProgressBarEl = document.getElementById("toastProgressBar");
+const toastProgressPercentEl = document.getElementById("toastProgressPercent");
+const downloadPanelEl = document.getElementById("downloadPanel");
+const downloadFileNameEl = document.getElementById("downloadFileName");
+const downloadProgressBarEl = document.getElementById("downloadProgressBar");
+const downloadStatsEl = document.getElementById("downloadStats");
+const downloadCancelBtn = document.getElementById("downloadCancelBtn");
 const scrollToBottomButtonEl = document.getElementById("scrollToBottomButton");
 
 const settingsBtn = document.getElementById("settingsBtn");
@@ -112,8 +121,164 @@ function setLoading(isLoading) {
   loadingOverlayEl.classList.toggle("hidden", !isLoading);
 }
 
+let activeDownloadXhr = null;
+let downloadPanelHideTimerId = null;
+let downloadSpeedSample = { loaded: 0, time: Date.now() };
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  const decimals = unitIndex > 0 ? 2 : 0;
+  return `${size.toFixed(decimals)} ${units[unitIndex]}`;
+}
+
+function formatSpeed(bytesPerSecond) {
+  if (!bytesPerSecond || bytesPerSecond <= 0) return "0 B/s";
+  return `${formatBytes(bytesPerSecond)}/s`;
+}
+
+function formatEta(seconds) {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) {
+    return "đang tính...";
+  }
+  if (seconds < 60) {
+    return `${Math.ceil(seconds)} giây còn lại`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} phút còn lại`;
+}
+
+function resolveDownloadUrl(url) {
+  try {
+    return new URL(url, window.location.href).href;
+  } catch {
+    return url;
+  }
+}
+
+function hideDownloadPanel(delayMs = 0) {
+  if (!downloadPanelEl) return;
+  if (downloadPanelHideTimerId) {
+    clearTimeout(downloadPanelHideTimerId);
+    downloadPanelHideTimerId = null;
+  }
+  const hide = () => downloadPanelEl.classList.add("hidden");
+  if (delayMs > 0) {
+    downloadPanelHideTimerId = setTimeout(hide, delayMs);
+  } else {
+    hide();
+  }
+}
+
+function showDownloadPanel({ fileName, loaded = 0, total = 0, speed = 0, percent = 0, statusText }) {
+  if (!downloadPanelEl) return;
+
+  if (downloadPanelHideTimerId) {
+    clearTimeout(downloadPanelHideTimerId);
+    downloadPanelHideTimerId = null;
+  }
+
+  downloadPanelEl.classList.remove("hidden");
+  if (downloadFileNameEl) {
+    downloadFileNameEl.textContent = fileName;
+  }
+
+  const safePercent = percent != null && Number.isFinite(percent)
+    ? Math.min(100, Math.max(0, percent))
+    : (total > 0 ? Math.min(100, (loaded / total) * 100) : 0);
+
+  if (downloadProgressBarEl) {
+    downloadProgressBarEl.style.width = `${safePercent}%`;
+  }
+
+  if (downloadStatsEl) {
+    if (statusText) {
+      downloadStatsEl.textContent = statusText;
+      return;
+    }
+
+    const speedText = formatSpeed(speed);
+    const loadedText = formatBytes(loaded);
+    const totalText = total > 0 ? formatBytes(total) : "...";
+    const etaText = total > loaded && speed > 0
+      ? formatEta((total - loaded) / speed)
+      : "đang tính...";
+
+    downloadStatsEl.textContent = `${speedText} — ${loadedText} / ${totalText}, ${etaText}`;
+  }
+}
+
+function hideTransferProgress() {
+  if (toastProgressWrapEl) {
+    toastProgressWrapEl.classList.add("hidden");
+  }
+  if (toastProgressBarEl) {
+    toastProgressBarEl.style.width = "0%";
+  }
+  if (toastProgressPercentEl) {
+    toastProgressPercentEl.textContent = "0%";
+  }
+}
+
+function showTransferProgress({ percent, label, loaded, total }) {
+  if (!toastEl) return;
+
+  toastEl.style.background = "#0f172a";
+  toastEl.classList.remove("hidden");
+  if (toastMessageEl) {
+    toastMessageEl.textContent = label;
+  }
+  if (toastProgressWrapEl) {
+    toastProgressWrapEl.classList.remove("hidden");
+  }
+
+  if (toastTimerId) {
+    clearTimeout(toastTimerId);
+    toastTimerId = null;
+  }
+
+  if (percent != null && !Number.isNaN(percent)) {
+    const clamped = Math.min(100, Math.max(0, Math.round(percent)));
+    if (toastProgressBarEl) toastProgressBarEl.style.width = `${clamped}%`;
+    if (toastProgressPercentEl) toastProgressPercentEl.textContent = `${clamped}%`;
+    return;
+  }
+
+  if (loaded != null) {
+    const loadedText = formatBytes(loaded);
+    const totalText = total ? formatBytes(total) : "...";
+    if (toastMessageEl) {
+      toastMessageEl.textContent = `${label} (${loadedText} / ${totalText})`;
+    }
+    if (total) {
+      const ratio = Math.min(100, Math.round((loaded / total) * 100));
+      if (toastProgressBarEl) toastProgressBarEl.style.width = `${ratio}%`;
+      if (toastProgressPercentEl) toastProgressPercentEl.textContent = `${ratio}%`;
+    } else {
+      if (toastProgressBarEl) toastProgressBarEl.style.width = "35%";
+      if (toastProgressPercentEl) toastProgressPercentEl.textContent = "...";
+    }
+  }
+}
+
 function showToast(message, type = "info") {
-  toastEl.textContent = message;
+  hideTransferProgress();
+  if (toastMessageEl) {
+    toastMessageEl.textContent = message;
+  }
   toastEl.style.background = type === "error" ? "#b91c1c" : "#0f172a";
   toastEl.classList.remove("hidden");
 
@@ -126,13 +291,167 @@ function showToast(message, type = "info") {
 }
 
 function showProgressToast(percent) {
-  toastEl.textContent = `Đang upload file lớn, vui lòng chờ... ${percent}%`;
-  toastEl.style.background = "#0f172a";
-  toastEl.classList.remove("hidden");
+  showTransferProgress({
+    percent,
+    label: "Đang upload file lớn, vui lòng chờ..."
+  });
+}
 
-  if (toastTimerId) {
-    clearTimeout(toastTimerId);
+function fallbackDirectDownload(url, fileName) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  showDownloadPanel({
+    fileName,
+    statusText: "Không đọc được tiến trình — trình duyệt đang tải file"
+  });
+  hideDownloadPanel(5000);
+}
+
+function downloadFileWithProgress(url, fileName, expectedSize = 0) {
+  if (activeDownloadXhr) {
+    showToast("Đang tải file khác, vui lòng chờ...");
+    return;
   }
+
+  const resolvedUrl = resolveDownloadUrl(url);
+  const knownTotal = Number(expectedSize) || 0;
+  downloadSpeedSample = { loaded: 0, time: Date.now() };
+
+  showDownloadPanel({
+    fileName,
+    loaded: 0,
+    total: knownTotal,
+    speed: 0,
+    percent: 0
+  });
+
+  const xhr = new XMLHttpRequest();
+  activeDownloadXhr = xhr;
+  xhr.open("GET", resolvedUrl, true);
+  xhr.responseType = "blob";
+
+  xhr.onprogress = (event) => {
+    const now = Date.now();
+    const elapsed = (now - downloadSpeedSample.time) / 1000;
+    let speed = 0;
+
+    if (elapsed >= 0.25) {
+      speed = (event.loaded - downloadSpeedSample.loaded) / elapsed;
+      downloadSpeedSample = { loaded: event.loaded, time: now };
+    }
+
+    const total = event.lengthComputable ? event.total : knownTotal;
+    const percent = total > 0 ? (event.loaded / total) * 100 : null;
+
+    showDownloadPanel({
+      fileName,
+      loaded: event.loaded,
+      total,
+      speed,
+      percent
+    });
+  };
+
+  xhr.onload = () => {
+    activeDownloadXhr = null;
+
+    if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
+      const blobUrl = URL.createObjectURL(xhr.response);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+
+      const total = knownTotal || xhr.response.size || 0;
+      showDownloadPanel({
+        fileName,
+        loaded: total,
+        total,
+        speed: 0,
+        percent: 100,
+        statusText: "Tải xuống hoàn tất!"
+      });
+      hideDownloadPanel(4000);
+      return;
+    }
+
+    showDownloadPanel({
+      fileName,
+      statusText: "Tải thất bại — đang mở link tải..."
+    });
+    fallbackDirectDownload(resolvedUrl, fileName);
+  };
+
+  xhr.onerror = () => {
+    activeDownloadXhr = null;
+    showDownloadPanel({
+      fileName,
+      statusText: "Lỗi kết nối — đang mở link tải..."
+    });
+    fallbackDirectDownload(resolvedUrl, fileName);
+  };
+
+  xhr.onabort = () => {
+    activeDownloadXhr = null;
+    showDownloadPanel({
+      fileName,
+      statusText: "Đã hủy tải xuống"
+    });
+    hideDownloadPanel(2500);
+  };
+
+  xhr.send();
+}
+
+function handleDownloadClick(event) {
+  let trigger = event.target.closest("[data-download-url]");
+
+  if (!trigger) {
+    const legacyLink = event.target.closest("a.msg-file");
+    if (!legacyLink || !legacyLink.href || legacyLink.href.endsWith("#")) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const legacyName = legacyLink.querySelector(".msg-file-name")?.textContent?.trim() || "download";
+    downloadFileWithProgress(legacyLink.href, legacyName, 0);
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const url = trigger.dataset.downloadUrl;
+  const fileName = trigger.dataset.downloadName || "download";
+  const expectedSize = Number(trigger.dataset.downloadSize) || 0;
+  if (!url) return;
+
+  downloadFileWithProgress(url, fileName, expectedSize);
+}
+
+function handleDownloadKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const trigger = event.target.closest("[data-download-url]");
+  if (!trigger) return;
+  event.preventDefault();
+  handleDownloadClick(event);
+}
+
+if (downloadCancelBtn) {
+  downloadCancelBtn.addEventListener("click", () => {
+    if (activeDownloadXhr) {
+      activeDownloadXhr.abort();
+    }
+  });
 }
 
 function resetChatState() {
@@ -201,15 +520,19 @@ function addMessageNode(message, isLastMyMsg = false, convInitials = "?", contai
         innerHTML += `<div class="msg-attachment"><audio controls src="${message.attachment.url}"></audio></div>`;
       } else {
         const sizeInMb = (message.attachment.size / (1024 * 1024)).toFixed(2);
+        const safeFileName = escapeHtml(message.attachment.name || "download");
+        const safeFileUrl = escapeHtml(message.attachment.url);
+        const fileSize = Number(message.attachment.size) || 0;
         innerHTML += `
           <div class="msg-attachment">
-            <a href="${message.attachment.url}" target="_blank" class="msg-file">
+            <div class="msg-file msg-file-download" role="button" tabindex="0"
+              data-download-url="${safeFileUrl}" data-download-name="${safeFileName}" data-download-size="${fileSize}">
               <i class="ph ph-file-text"></i>
               <div class="msg-file-info">
                 <span class="msg-file-name">${message.attachment.name}</span>
                 <span class="msg-file-size">${sizeInMb} MB</span>
               </div>
-            </a>
+            </div>
           </div>`;
       }
     }
@@ -400,6 +723,9 @@ function renderConversations(keyword = "") {
 }
 
 let ctxConvId = null;
+
+document.addEventListener("click", handleDownloadClick, true);
+document.addEventListener("keydown", handleDownloadKeydown, true);
 
 document.addEventListener("click", () => {
   const ctx = document.getElementById("contextMenu");
@@ -623,8 +949,9 @@ async function handleFileUpload(e) {
     e.target.value = '';
     messageInputEl.value = '';
     showToast("Tải lên hoàn tất!", "success");
-  } catch (_error) {
-    showToast("File upload failed.", "error");
+  } catch (error) {
+    console.error("Upload error:", error);
+    showToast(error.message || "File upload failed.", "error");
   } finally {
     setLoading(false);
   }
@@ -757,11 +1084,16 @@ function renderFiles() {
   let filesHtml = "";
   docs.forEach(doc => {
     const sizeInMb = (doc.attachment.size / (1024 * 1024)).toFixed(2);
+    const safeFileName = escapeHtml(doc.attachment.name || "download");
+    const safeFileUrl = escapeHtml(doc.attachment.url);
+    const fileSize = Number(doc.attachment.size) || 0;
     filesHtml += `
-      <div class="link-item">
+      <div class="link-item msg-file-download" role="button" tabindex="0"
+        data-download-url="${safeFileUrl}" data-download-name="${safeFileName}" data-download-size="${fileSize}"
+        style="cursor:pointer;">
         <i class="ph ph-file-text"></i>
         <div class="msg-file-info">
-          <a href="${doc.attachment.url}" target="_blank" class="msg-file-name" style="text-decoration:none;color:var(--text);">${doc.attachment.name}</a>
+          <span class="msg-file-name" style="color:var(--text);">${doc.attachment.name}</span>
           <span class="msg-file-size">${sizeInMb} MB</span>
         </div>
       </div>`;
@@ -778,7 +1110,12 @@ function renderLinks() {
 
   let html = "";
   docs.forEach(doc => {
-    html += `<div class="link-item"><i class="ph ph-file"></i><a href="${doc.attachment.url}" target="_blank">${doc.attachment.name}</a></div>`;
+    const safeFileName = escapeHtml(doc.attachment.name || "download");
+    const safeFileUrl = escapeHtml(doc.attachment.url);
+    const fileSize = Number(doc.attachment.size) || 0;
+    html += `<div class="link-item msg-file-download" role="button" tabindex="0"
+      data-download-url="${safeFileUrl}" data-download-name="${safeFileName}" data-download-size="${fileSize}"
+      style="cursor:pointer;"><i class="ph ph-file"></i><span>${doc.attachment.name}</span></div>`;
   });
   texts.forEach(txt => {
     const matched = txt.text.match(linkRegex);

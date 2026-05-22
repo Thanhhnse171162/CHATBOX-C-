@@ -3,19 +3,34 @@
     return global.__CHAT_DISPLAY_NAME__ || "Anonymous";
   }
 
-  // ✅ Phân loại file: ảnh/audio/video nhỏ → Cloudinary Direct, còn lại → server (Backblaze)
+  let uploadConfig = { cloudinaryDirect: false, b2: false, local: true };
+
+  async function ensureUploadConfig() {
+    try {
+      const res = await fetch("/api/upload/config");
+      if (res.ok) uploadConfig = await res.json();
+    } catch {
+      uploadConfig = { cloudinaryDirect: false, b2: false, local: true };
+    }
+  }
+
+  // Ảnh/audio/video nhỏ → Cloudinary Direct (chỉ khi server đã cấu hình .env)
   function shouldDirectUpload(file) {
+    if (!uploadConfig.cloudinaryDirect) return false;
     const isImage = file.type.startsWith('image/');
     const isAudio = file.type.startsWith('audio/');
     const isVideo = file.type.startsWith('video/');
-    const isSmall = file.size < 95 * 1024 * 1024; // < 95MB
+    const isSmall = file.size < 95 * 1024 * 1024;
     return (isImage || isAudio || isVideo) && isSmall;
   }
 
   // ✅ Upload thẳng lên Cloudinary từ browser (không qua server)
   async function directUploadToCloudinary(file, onProgress) {
-    // Lấy signature từ server
     const sigRes = await fetch("/api/cloudinary-signature");
+    if (!sigRes.ok) {
+      const err = await sigRes.json().catch(() => ({}));
+      throw new Error(err.error || "Cloudinary chua cau hinh");
+    }
     const { signature, timestamp, cloudName, apiKey, folder } = await sigRes.json();
 
     return new Promise((resolve, reject) => {
@@ -52,7 +67,12 @@
             size: file.size
           });
         } else {
-          reject(new Error("Cloudinary direct upload failed"));
+          let msg = "Cloudinary upload failed";
+          try {
+            const err = JSON.parse(xhr.responseText);
+            msg = err.error?.message || err.error || msg;
+          } catch { /* ignore */ }
+          reject(new Error(msg));
         }
       };
 
@@ -80,9 +100,18 @@
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText));
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error("Phan hoi upload khong hop le"));
+          }
         } else {
-          reject(new Error("Upload failed"));
+          let msg = `Upload failed (${xhr.status})`;
+          try {
+            const err = JSON.parse(xhr.responseText);
+            msg = err.error || msg;
+          } catch { /* ignore */ }
+          reject(new Error(msg));
         }
       };
 
@@ -123,15 +152,18 @@
 
     // ✅ uploadFile tự động chọn đường đi nhanh nhất
     async uploadFile(file, onProgress) {
+      await ensureUploadConfig();
       if (shouldDirectUpload(file)) {
-        // Ảnh/audio/video nhỏ → thẳng lên Cloudinary, cực nhanh!
-        console.log(`[Upload] Direct → Cloudinary: ${file.name}`);
-        return directUploadToCloudinary(file, onProgress);
-      } else {
-        // RAR/ZIP/file lớn → qua server → Backblaze
-        console.log(`[Upload] Via Server → Backblaze: ${file.name}`);
-        return uploadViaServer(file, onProgress);
+        try {
+          console.log(`[Upload] Direct → Cloudinary: ${file.name}`);
+          return await directUploadToCloudinary(file, onProgress);
+        } catch (error) {
+          console.warn("[Upload] Cloudinary direct failed, fallback server:", error.message);
+          return uploadViaServer(file, onProgress);
+        }
       }
+      console.log(`[Upload] Via Server: ${file.name}`);
+      return uploadViaServer(file, onProgress);
     },
 
     subscribe(handlers) {
@@ -147,7 +179,10 @@
       socket.off("messages:history");
       socket.off("messages:new");
 
-      socket.on("connect", () => socket.emit("user:join", getDisplayName()));
+      socket.on("connect", () => {
+        ensureUploadConfig();
+        socket.emit("user:join", getDisplayName());
+      });
 
       socket.on("users:update", (data) => handlers.onPresence(data));
 

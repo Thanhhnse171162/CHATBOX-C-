@@ -17,11 +17,19 @@ const {
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const isCloudinaryReady = () =>
+  !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+
+const isB2Ready = () =>
+  !!(process.env.B2_ENDPOINT && process.env.B2_KEY_ID && process.env.B2_APP_KEY && process.env.B2_BUCKET_NAME);
+
+if (isCloudinaryReady()) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+}
 
 const s3 = new S3Client({
   endpoint: `https://${process.env.B2_ENDPOINT}`,
@@ -57,7 +65,20 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ✅ MỚI: Endpoint tạo Cloudinary signature — frontend upload thẳng, không qua server
+app.get("/api/upload/config", (_req, res) => {
+  res.json({
+    cloudinaryDirect: isCloudinaryReady(),
+    b2: isB2Ready(),
+    local: true
+  });
+});
+
 app.get("/api/cloudinary-signature", (req, res) => {
+  if (!isCloudinaryReady()) {
+    return res.status(503).json({
+      error: "Cloudinary chua cau hinh. Kiem tra file .env hoac upload qua server (local/B2)."
+    });
+  }
   const timestamp = Math.round(new Date().getTime() / 1000);
   const params = {
     timestamp,
@@ -160,22 +181,53 @@ async function uploadToBackblaze(file) {
   return { url: signedUrl, name: file.originalname, type: contentType, size: fileSize };
 }
 
+const LOCAL_UPLOAD_DIR = path.join(__dirname, "public", "uploads");
+if (!fs.existsSync(LOCAL_UPLOAD_DIR)) fs.mkdirSync(LOCAL_UPLOAD_DIR, { recursive: true });
+
+async function uploadToLocal(file) {
+  const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${file.originalname.replace(/\s+/g, "_")}`;
+  const dest = path.join(LOCAL_UPLOAD_DIR, safeName);
+  await fs.promises.copyFile(file.path, dest);
+  return {
+    url: `/uploads/${safeName}`,
+    name: file.originalname,
+    type: file.mimetype,
+    size: file.size
+  };
+}
+
 // ✅ Route upload server — stream từ disk, xoá file tạm sau khi xong
 app.post("/api/upload", (req, res, next) => {
   req.setTimeout(7200000);
   res.setTimeout(7200000);
   next();
-}, upload.single("file"), async (req, res) => {
+}, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ error: "File qua lon. Gioi han 5GB." });
+      }
+      return res.status(400).json({ error: err.message || "Upload failed" });
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   const tempPath = req.file.path;
   try {
     let result;
-    if (shouldUseCloudinary(req.file.mimetype, req.file.size)) {
-      console.log(`[Upload] → Cloudinary (server relay): ${req.file.originalname}`);
+    const useCloudinary = shouldUseCloudinary(req.file.mimetype, req.file.size) && isCloudinaryReady();
+    const useB2 = isB2Ready();
+
+    if (useCloudinary) {
+      console.log(`[Upload] → Cloudinary: ${req.file.originalname}`);
       result = await uploadToCloudinary(req.file);
-    } else {
+    } else if (useB2) {
       console.log(`[Upload] → Backblaze B2: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(1)} MB)`);
       result = await uploadToBackblaze(req.file);
+    } else {
+      console.log(`[Upload] → Local disk: ${req.file.originalname} (chua cau hinh Cloud/B2)`);
+      result = await uploadToLocal(req.file);
     }
     res.json(result);
   } catch (error) {
@@ -290,7 +342,10 @@ server.on("error", (err) => {
   if (err?.code === "EADDRINUSE") { console.warn(`Port ${PORT} already in use.`); process.exit(0); }
   console.error("Server error:", err); process.exit(1);
 });
-server.listen(PORT, "0.0.0.0", () => console.log(`Server running at http://localhost:${PORT}`));
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Upload: Cloudinary=${isCloudinaryReady() ? "ON" : "OFF"}, B2=${isB2Ready() ? "ON" : "OFF"}, Local=ON`);
+});
 server.setTimeout(7200000);
 server.keepAliveTimeout = 7200000;
 server.headersTimeout = 7200000;

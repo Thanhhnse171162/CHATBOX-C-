@@ -206,7 +206,27 @@
   <div id="loadingOverlay" class="loading-overlay hidden">
     <div class="loading-card">Loading...</div>
   </div>
-  <div id="toast" class="toast hidden"></div>
+  <div id="downloadPanel" class="download-panel hidden">
+    <div class="download-panel-top">
+      <i class="ph ph-file-archive download-panel-icon"></i>
+      <span id="downloadFileName" class="download-file-name"></span>
+      <button type="button" id="downloadCancelBtn" class="download-cancel-btn" title="Hủy tải">&times;</button>
+    </div>
+    <div class="download-panel-track">
+      <div id="downloadProgressBar" class="download-panel-bar"></div>
+    </div>
+    <div id="downloadStats" class="download-panel-stats">Đang chuẩn bị...</div>
+  </div>
+
+  <div id="toast" class="toast hidden">
+    <div id="toastMessage" class="toast-message"></div>
+    <div id="toastProgressWrap" class="toast-progress hidden">
+      <div class="toast-progress-track">
+        <div id="toastProgressBar" class="toast-progress-bar"></div>
+      </div>
+      <span id="toastProgressPercent" class="toast-progress-percent">0%</span>
+    </div>
+  </div>
 
   <div id="settingsWindow" class="auth-screen hidden"
     style="position:fixed; inset:0; z-index: 1000; background: rgba(0,0,0,0.5);">
