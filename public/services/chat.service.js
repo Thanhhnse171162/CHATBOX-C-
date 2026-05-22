@@ -209,7 +209,7 @@
           text: msg.text,
           attachment: msg.attachment,
           time: msg.time,
-          seen: true,
+          seen: false,
           isSystem: msg.isSystem
         });
       });

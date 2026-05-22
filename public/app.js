@@ -3,12 +3,8 @@ const chatService = window.ChatService;
 const authScreenEl = document.getElementById("authScreen");
 const chatAppEl = document.getElementById("chatApp");
 const authFormEl = document.getElementById("authForm");
-const authToggleEl = document.getElementById("authToggle");
-const authTitleEl = document.getElementById("authTitle");
 const authSubmitEl = document.getElementById("authSubmit");
 const authNameEl = document.getElementById("authName");
-const authEmailEl = document.getElementById("authEmail");
-const authPasswordEl = document.getElementById("authPassword");
 const currentUserEl = document.getElementById("currentUser");
 const logoutButtonEl = document.getElementById("logoutButton");
 
@@ -39,11 +35,22 @@ const fileInput = document.getElementById("fileInput");
 const emojiPicker = document.getElementById("emojiPicker");
 
 const createGroupBtn = document.getElementById("createGroupBtn");
-const tabChat = document.getElementById("tabChat");
-const tabFiles = document.getElementById("tabFiles");
-const tabLinks = document.getElementById("tabLinks");
-const filesSection = document.getElementById("filesSection");
-const linksSection = document.getElementById("linksSection");
+const btnToggleSidebar = document.getElementById("btnToggleSidebar");
+const btnSearchConv = document.getElementById("btnSearchConv");
+const rightSidebar = document.getElementById("rightSidebar");
+const rsInfoView = document.getElementById("rsInfoView");
+const rsSearchView = document.getElementById("rsSearchView");
+const btnCloseSearch = document.getElementById("btnCloseSearch");
+const convSearchInput = document.getElementById("convSearchInput");
+const convSearchStatus = document.getElementById("convSearchStatus");
+const convSearchResults = document.getElementById("convSearchResults");
+const rsTabMedia = document.getElementById("rsTabMedia");
+const rsTabFiles = document.getElementById("rsTabFiles");
+const rsTabLinks = document.getElementById("rsTabLinks");
+const rsMediaSection = document.getElementById("rsMediaSection");
+const rsFilesSection = document.getElementById("rsFilesSection");
+const rsLinksSection = document.getElementById("rsLinksSection");
+const rsFilesList = document.getElementById("rsFilesList");
 const filesGrid = document.getElementById("filesGrid");
 const linksList = document.getElementById("linksList");
 const composerForm = document.getElementById("chatForm");
@@ -67,13 +74,14 @@ let recordTimerInterval = null;
 let recordSeconds = 0;
 
 const state = {
-  isRegisterMode: false,
   me: null,
   conversations: [],
   activeConversationId: "global",
   messagesByConversation: {},
   typingByConversation: {},
-  mutedConversations: {}
+  mutedConversations: {},
+  pinnedConversations: {},
+  hiddenConversations: {}
 };
 
 let toastTimerId = null;
@@ -143,9 +151,13 @@ function getActiveMessages() {
   return state.messagesByConversation[state.activeConversationId] || [];
 }
 
-function addMessageNode(message) {
-  const box = document.createElement("article");
+function addMessageNode(message, isLastMyMsg = false, convInitials = "?") {
   const isSelf = message.senderName === state.me?.name;
+
+  // Do not show the "You joined the chat" system message
+  if (message.isSystem && message.text === `${state.me?.name} đã tham gia chat.`) return;
+
+  const box = document.createElement("article");
   box.className = `message-row ${isSelf ? "self" : "other"} ${message.isSystem ? "system" : ""}`;
 
   let innerHTML = '';
@@ -193,10 +205,17 @@ function addMessageNode(message) {
     }
 
     const timeStr = formatTime(message.time);
-    let statusStr = '';
     if (isSelf) {
-      statusStr = message.seen ? "Read" : "Sent";
-      innerHTML += `<div class="msg-time">${timeStr} - ${statusStr}</div>`;
+      innerHTML += `<div class="msg-time">${timeStr}</div>`;
+      if (isLastMyMsg) {
+        innerHTML += `
+          <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+            <div style="width: 14px; height: 14px; border-radius: 50%; background: var(--primary); color: white; display: grid; place-items: center; font-size: 8px; font-weight: bold; overflow: hidden; white-space: nowrap;">
+              ${convInitials}
+            </div>
+          </div>
+        `;
+      }
     } else {
       innerHTML += `<div class="msg-time">${timeStr}</div>`;
     }
@@ -208,18 +227,61 @@ function addMessageNode(message) {
   messagesEl.appendChild(box);
 }
 
+function updateUnreadBadge() {
+  const badge = document.getElementById("unreadBadge");
+  if (!badge) return;
+  let count = 0;
+  Object.values(state.messagesByConversation).forEach(msgs => {
+    msgs.forEach(m => {
+      if (!m.seen && !m.isSystem && m.senderName !== state.me?.name) {
+        count++;
+      }
+    });
+  });
+  if (count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
 function renderMessages() {
   const messageList = getActiveMessages();
-  const isLastMessageSelf = messageList.length > 0 && messageList[messageList.length - 1].senderName === state.me?.name;
-  const shouldStickBottom = isNearBottom() || isLastMessageSelf;
+  
+  // Mark all incoming as seen
+  messageList.forEach(m => {
+    if (m.senderName !== state.me?.name) m.seen = true;
+  });
+  updateUnreadBadge();
+
+  let lastMyMsgId = null;
+  for (let i = messageList.length - 1; i >= 0; i--) {
+    if (messageList[i].senderName === state.me?.name) {
+      lastMyMsgId = messageList[i].id;
+      break;
+    }
+  }
+
+  const activeConv = getActiveConversation();
+  const convInitials = activeConv ? (activeConv.name || '?').substring(0, 2).toUpperCase() : '?';
+
+  const shouldStickBottom = isNearBottom();
 
   messagesEl.innerHTML = "";
-  messageList.forEach(addMessageNode);
+  messageList.forEach(m => addMessageNode(m, m.id === lastMyMsgId, convInitials));
+  
   emptyStateEl.classList.toggle("hidden", messageList.length > 0);
   if (shouldStickBottom) {
     scrollMessagesToBottom();
   }
   updateScrollToBottomButton();
+
+  // Update right sidebar if visible
+  if (rightSidebar && !rightSidebar.classList.contains("hidden")) {
+    renderFiles();
+    renderLinks();
+  }
 }
 
 function renderTypingStatus() {
@@ -230,15 +292,17 @@ function renderTypingStatus() {
 function renderHeader() {
   const activeConv = getActiveConversation();
   if (activeConv) {
-    chatStatusEl.textContent = `${state.conversations.length} members | Active now`;
     messageInputEl.disabled = false;
     sendButtonEl.disabled = false;
     if (btnMute) btnMute.style.display = "block";
+    if (btnToggleSidebar) btnToggleSidebar.style.display = "block";
+    if (btnSearchConv) btnSearchConv.style.display = "block";
   } else {
-    chatStatusEl.textContent = "Select a conversation";
     messageInputEl.disabled = true;
     sendButtonEl.disabled = true;
     if (btnMute) btnMute.style.display = "none";
+    if (btnToggleSidebar) btnToggleSidebar.style.display = "none";
+    if (btnSearchConv) btnSearchConv.style.display = "none";
   }
 
   if (btnMute && activeConv) {
@@ -250,9 +314,16 @@ function renderHeader() {
 
 function renderConversations(keyword = "") {
   const lower = keyword.toLowerCase();
-  const filtered = state.conversations.filter((item) =>
-    item.name.toLowerCase().includes(lower)
+  let filtered = state.conversations.filter((item) =>
+    item.name.toLowerCase().includes(lower) && !state.hiddenConversations[item.id]
   );
+
+  filtered.sort((a, b) => {
+    const aPinned = state.pinnedConversations[a.id] ? 1 : 0;
+    const bPinned = state.pinnedConversations[b.id] ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+    return 0;
+  });
 
   usersListEl.innerHTML = "";
   filtered.forEach((conversation) => {
@@ -273,7 +344,11 @@ function renderConversations(keyword = "") {
       <div class="conv-main">
         <div class="conv-header">
           <span class="conv-name">${conversation.name}</span>
-          <span class="conv-time">${conversation.time || 'Now'}</span>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            ${state.pinnedConversations[conversation.id] ? '<i class="ph-fill ph-push-pin" style="color: var(--muted); font-size: 14px;"></i>' : ''}
+            ${state.mutedConversations[conversation.id] ? '<i class="ph-fill ph-bell-slash" style="color: var(--muted); font-size: 14px;"></i>' : ''}
+            <span class="conv-time" style="margin-left: 4px;">${conversation.time || 'Now'}</span>
+          </div>
         </div>
         <div class="conv-preview">${conversation.lastMessage || 'Connected'}</div>
       </div>
@@ -282,7 +357,114 @@ function renderConversations(keyword = "") {
       state.activeConversationId = conversation.id;
       renderAll();
     });
+
+    item.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      ctxConvId = conversation.id;
+      
+      const ctx = document.getElementById("contextMenu");
+      ctx.classList.remove("hidden");
+      
+      let x = e.clientX;
+      let y = e.clientY;
+      if (x + 180 > window.innerWidth) x -= 180;
+      if (y + 240 > window.innerHeight) y -= 240;
+      
+      ctx.style.left = `${x}px`;
+      ctx.style.top = `${y}px`;
+      
+      const isMuted = state.mutedConversations[ctxConvId];
+      document.getElementById("ctxMute").innerHTML = isMuted ? 'Bật thông báo <i class="ph-fill ph-bell" style="float: right;"></i>' : 'Tắt thông báo <i class="ph-fill ph-bell-slash" style="float: right;"></i>';
+      
+      const isPinned = state.pinnedConversations[ctxConvId];
+      document.getElementById("ctxPin").innerHTML = isPinned ? 'Bỏ ghim <i class="ph-fill ph-push-pin-slash" style="float: right;"></i>' : 'Ghim <i class="ph-fill ph-push-pin" style="float: right;"></i>';
+    });
+
     usersListEl.appendChild(item);
+  });
+}
+
+let ctxConvId = null;
+
+document.addEventListener("click", () => {
+  const ctx = document.getElementById("contextMenu");
+  if (ctx && !ctx.classList.contains("hidden")) {
+    ctx.classList.add("hidden");
+  }
+});
+
+const ctxMarkRead = document.getElementById("ctxMarkRead");
+const ctxPin = document.getElementById("ctxPin");
+const ctxMute = document.getElementById("ctxMute");
+const ctxArchive = document.getElementById("ctxArchive");
+const ctxDelete = document.getElementById("ctxDelete");
+const ctxBlock = document.getElementById("ctxBlock");
+
+if (ctxMarkRead) {
+  ctxMarkRead.addEventListener("click", () => {
+    if (ctxConvId && state.messagesByConversation[ctxConvId]) {
+      state.messagesByConversation[ctxConvId].forEach(m => m.seen = true);
+      updateUnreadBadge();
+      showToast("Đã đánh dấu là đã đọc", "info");
+    }
+  });
+}
+
+if (ctxPin) {
+  ctxPin.addEventListener("click", () => {
+    if (ctxConvId) {
+      state.pinnedConversations[ctxConvId] = !state.pinnedConversations[ctxConvId];
+      renderConversations(searchInputEl.value);
+    }
+  });
+}
+
+if (ctxMute) {
+  ctxMute.addEventListener("click", () => {
+    if (ctxConvId) {
+      state.mutedConversations[ctxConvId] = !state.mutedConversations[ctxConvId];
+      renderConversations(searchInputEl.value);
+    }
+  });
+}
+
+if (ctxArchive) {
+  ctxArchive.addEventListener("click", () => {
+    if (ctxConvId) {
+      state.hiddenConversations[ctxConvId] = true;
+      if (state.activeConversationId === ctxConvId) {
+        state.activeConversationId = null;
+      }
+      renderAll();
+      showToast("Đã lưu trữ cuộc trò chuyện", "info");
+    }
+  });
+}
+
+if (ctxDelete) {
+  ctxDelete.addEventListener("click", () => {
+    if (ctxConvId) {
+      state.hiddenConversations[ctxConvId] = true;
+      state.messagesByConversation[ctxConvId] = [];
+      if (state.activeConversationId === ctxConvId) {
+        state.activeConversationId = null;
+      }
+      renderAll();
+      showToast("Đã xóa cuộc trò chuyện", "info");
+    }
+  });
+}
+
+if (ctxBlock) {
+  ctxBlock.addEventListener("click", () => {
+    if (ctxConvId) {
+      state.hiddenConversations[ctxConvId] = true;
+      if (state.activeConversationId === ctxConvId) {
+        state.activeConversationId = null;
+      }
+      renderAll();
+      showToast("Đã chặn người dùng", "error");
+    }
   });
 }
 
@@ -293,47 +475,25 @@ function renderAll() {
   renderTypingStatus();
 }
 
-function setAuthMode(isRegisterMode) {
-  state.isRegisterMode = isRegisterMode;
-  authTitleEl.textContent = isRegisterMode ? "Create Account" : "Sign In";
-  authSubmitEl.textContent = isRegisterMode ? "Register" : "Sign In";
-  authToggleEl.textContent = isRegisterMode
-    ? "Already have account? Sign In"
-    : "No account? Register";
-  authNameEl.style.display = isRegisterMode ? "block" : "none";
-  authNameEl.required = isRegisterMode;
-}
-
 searchInputEl.addEventListener("input", (event) => {
   renderConversations(event.target.value);
-});
-
-authToggleEl.addEventListener("click", () => {
-  setAuthMode(!state.isRegisterMode);
 });
 
 authFormEl.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const payload = {
-    name: authNameEl.value.trim(),
-    email: authEmailEl.value.trim(),
-    password: authPasswordEl.value
-  };
-  if (!payload.email || !payload.password || (state.isRegisterMode && !payload.name)) {
-    showToast("Please fill all required fields.", "error");
-    return;
+  let name = authNameEl.value.trim();
+  if (!name) {
+    name = "Anonymous";
   }
 
   try {
     setLoading(true);
-    const authResult = state.isRegisterMode
-      ? await chatService.register(payload)
-      : await chatService.signIn(payload);
-
-    state.me = authResult.user;
-    window.__CHAT_DISPLAY_NAME__ = state.me.name;
-    currentUserEl.textContent = state.me.name;
+    
+    // We just set the global name so chatService can pick it up when connecting
+    window.__CHAT_DISPLAY_NAME__ = name;
+    state.me = { id: "u-self", name: name, email: "" };
+    currentUserEl.textContent = name;
 
     const initialData = await chatService.loadInitialData();
     state.activeConversationId = initialData.activeConversationId;
@@ -346,7 +506,7 @@ authFormEl.addEventListener("submit", async (event) => {
     initRealtimeSubscriptions();
 
     renderAll();
-    showToast(state.isRegisterMode ? "Account created." : "Signed in.");
+    showToast("Signed in successfully.");
   } catch (_error) {
     showToast("Unable to authenticate. Try again.", "error");
   } finally {
@@ -458,31 +618,133 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-if (tabChat && tabFiles && tabLinks) {
-  tabChat.addEventListener("click", () => switchTab("chat"));
-  tabFiles.addEventListener("click", () => switchTab("files"));
-  tabLinks.addEventListener("click", () => switchTab("links"));
+if (btnToggleSidebar) {
+  btnToggleSidebar.addEventListener("click", () => {
+    rightSidebar.classList.toggle("hidden");
+    if (!rightSidebar.classList.contains("hidden")) {
+      renderFiles();
+      renderLinks();
+    }
+  });
 }
 
-function switchTab(tab) {
-  tabChat.classList.toggle("active", tab === "chat");
-  tabFiles.classList.toggle("active", tab === "files");
-  tabLinks.classList.toggle("active", tab === "links");
+if (btnSearchConv) {
+  btnSearchConv.addEventListener("click", () => {
+    rightSidebar.classList.remove("hidden");
+    rsInfoView.classList.add("hidden");
+    rsSearchView.classList.remove("hidden");
+    convSearchInput.value = "";
+    convSearchResults.innerHTML = "";
+    convSearchStatus.textContent = "";
+    convSearchInput.focus();
+  });
+}
 
-  messagesEl.classList.toggle("hidden", tab !== "chat");
-  composerForm.classList.toggle("hidden", tab !== "chat");
-  filesSection.classList.toggle("hidden", tab !== "files");
-  linksSection.classList.toggle("active", tab === "links");
-  linksSection.classList.toggle("hidden", tab !== "links");
+if (btnCloseSearch) {
+  btnCloseSearch.addEventListener("click", () => {
+    rsSearchView.classList.add("hidden");
+    rsInfoView.classList.remove("hidden");
+  });
+}
 
-  if (tab === "files") renderFiles();
-  if (tab === "links") renderLinks();
+if (convSearchInput) {
+  let searchTimeout = null;
+  convSearchInput.addEventListener("input", (e) => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      performConvSearch(e.target.value);
+    }, 300);
+  });
+}
+
+function performConvSearch(keyword) {
+  const k = keyword.trim().toLowerCase();
+  if (!k) {
+    convSearchResults.innerHTML = "";
+    convSearchStatus.textContent = "";
+    return;
+  }
+  
+  const msgs = getActiveMessages();
+  const results = msgs.filter(m => m.text && m.text.toLowerCase().includes(k) && !m.isSystem);
+  
+  if (results.length === 0) {
+    convSearchStatus.textContent = "Không tìm thấy kết quả nào";
+    convSearchResults.innerHTML = "";
+    return;
+  }
+  
+  convSearchStatus.textContent = `${results.length} kết quả`;
+  
+  let html = "";
+  for (let i = results.length - 1; i >= 0; i--) {
+    const msg = results[i];
+    const sender = msg.senderName === state.me?.name ? "Bạn" : (msg.senderName || "Unknown");
+    const initials = sender.substring(0, 2).toUpperCase();
+    
+    // Highlight the keyword
+    const regex = new RegExp(`(${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const highlightedText = msg.text.replace(regex, '<strong>$1</strong>');
+    
+    const timeStr = formatTime(msg.time);
+    
+    html += `
+      <div class="user-item" style="padding: 12px 20px; align-items: flex-start; gap: 12px; cursor: pointer;">
+        <div class="conv-avatar-wrapper" style="width: 36px; height: 36px;">
+          <div class="conv-avatar" style="font-size: 14px;">${initials}</div>
+        </div>
+        <div class="conv-main">
+          <div class="conv-header" style="margin-bottom: 4px;">
+            <span class="conv-name" style="font-size: 14px;">${sender}</span>
+          </div>
+          <div class="conv-preview" style="font-size: 13px; color: var(--text); white-space: normal; line-height: 1.4;">
+            ${highlightedText}
+          </div>
+          <div class="conv-time" style="margin-top: 6px; font-size: 11px;">
+            ${timeStr}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  convSearchResults.innerHTML = html;
+}
+
+if (rsTabMedia && rsTabFiles && rsTabLinks) {
+  rsTabMedia.addEventListener("click", () => switchRsTab("media"));
+  rsTabFiles.addEventListener("click", () => switchRsTab("files"));
+  rsTabLinks.addEventListener("click", () => switchRsTab("links"));
+}
+
+function switchRsTab(tab) {
+  rsTabMedia.classList.toggle("active", tab === "media");
+  rsTabFiles.classList.toggle("active", tab === "files");
+  rsTabLinks.classList.toggle("active", tab === "links");
+
+  rsMediaSection.classList.toggle("hidden", tab !== "media");
+  rsFilesSection.classList.toggle("hidden", tab !== "files");
+  rsLinksSection.classList.toggle("hidden", tab !== "links");
 }
 
 function renderFiles() {
   const msgs = getActiveMessages();
   const images = msgs.filter(m => m.attachment && m.attachment.type && m.attachment.type.startsWith('image/'));
   filesGrid.innerHTML = images.map(img => `<img src="${img.attachment.url}" class="msg-image cursor-pointer" alt="Sent Image" />`).join("");
+
+  const docs = msgs.filter(m => m.attachment && (!m.attachment.type || (!m.attachment.type.startsWith('image/') && !m.attachment.type.startsWith('audio/'))));
+  let filesHtml = "";
+  docs.forEach(doc => {
+    const sizeInMb = (doc.attachment.size / (1024 * 1024)).toFixed(2);
+    filesHtml += `
+      <div class="link-item">
+        <i class="ph ph-file-text"></i>
+        <div class="msg-file-info">
+          <a href="${doc.attachment.url}" target="_blank" class="msg-file-name" style="text-decoration:none;color:var(--text);">${doc.attachment.name}</a>
+          <span class="msg-file-size">${sizeInMb} MB</span>
+        </div>
+      </div>`;
+  });
+  if (rsFilesList) rsFilesList.innerHTML = filesHtml || `<p class="empty-state">No files shared yet.</p>`;
 }
 
 function renderLinks() {
@@ -631,9 +893,13 @@ function initRealtimeSubscriptions() {
           : item
       );
       if (message.conversationId === state.activeConversationId) {
+        message.seen = true;
         renderMessages();
-      } else if (!message.isSystem && !state.mutedConversations[message.conversationId]) {
-        showToast(`New message from ${message.senderName || 'someone'}`);
+      } else if (!message.isSystem) {
+        if (!state.mutedConversations[message.conversationId]) {
+          showToast(`New message from ${message.senderName || 'someone'}`);
+        }
+        updateUnreadBadge();
       }
       renderConversations(searchInputEl.value);
       renderHeader();
@@ -675,5 +941,6 @@ function initRealtimeSubscriptions() {
 if (!chatService) {
   alert("Chat service is not loaded. Please check script includes.");
 } else {
-  setAuthMode(false);
+  // Chat service loaded successfully
+
 }
