@@ -6,7 +6,7 @@ chatting-group.sln
 │   ├── ChatMessageDtos.cs    ← 1 class, 9 properties + computed
 │   └── WireProtocol.cs       ← TCP/HTTP ports + JSON packets
 ├── ChatServer/
-│   ├── Program.cs            ← TCP :5000 + HTTP :5001 + EF Core
+│   ├── Program.cs            ← TCP :7000 + HTTP :7001 + EF Core
 │   ├── appsettings.json      ← PostgreSQL
 │   └── Data/
 │       ├── AppDbContext.cs   ← 7 DbSet
@@ -41,6 +41,8 @@ dotnet run --project ChatServer
 dotnet run --project ChatClient
 ```
 
-Login: `localhost:5000`, HTTP `5001`, đăng ký user mới lần đầu.
+Login: `localhost:7000`, HTTP `7001`, đăng ký user mới lần đầu (bấm **Register** nếu chưa có tài khoản).
 
-Máy khác: `192.168.x.x:5000` + HTTP port `5001`.
+Máy khác: `192.168.x.x:7000` + HTTP port `7001`.
+
+> Cổng 5000 thường bị PostgreSQL chiếm trên Windows — server dùng **7000/7001** để tránh xung đột.

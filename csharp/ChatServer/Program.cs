@@ -28,13 +28,32 @@ await using (var db = new AppDbContext(dbOptions))
     await SeedAsync(db);
 }
 
+var tcpPort = WireProtocol.TcpPort;
+var httpPort = WireProtocol.HttpPort;
+
+if (!IsPortAvailable(tcpPort))
+{
+    Console.Error.WriteLine($"[ERROR] TCP port {tcpPort} is already in use.");
+    Console.Error.WriteLine("Stop the other ChatServer window (Ctrl+C) or run:");
+    Console.Error.WriteLine($"  Get-NetTCPConnection -LocalPort {tcpPort} | %% Stop-Process -Id OwningProcess -Force");
+    return 1;
+}
+
+if (!IsPortAvailable(httpPort))
+{
+    Console.Error.WriteLine($"[ERROR] HTTP port {httpPort} is already in use.");
+    Console.Error.WriteLine("Stop the other ChatServer window (Ctrl+C) or run:");
+    Console.Error.WriteLine($"  Get-NetTCPConnection -LocalPort {httpPort} | %% Stop-Process -Id OwningProcess -Force");
+    return 1;
+}
+
 var sessions = new ConcurrentDictionary<Guid, ClientSession>();
 var cts = new CancellationTokenSource();
 
-_ = Task.Run(() => RunTcpServerAsync(dbOptions, sessions, cts.Token));
-
 var http = WebApplication.CreateBuilder(args).Build();
-http.Urls.Add($"http://0.0.0.0:{WireProtocol.HttpPort}");
+http.Urls.Add($"http://0.0.0.0:{httpPort}");
+
+_ = Task.Run(() => RunTcpServerAsync(dbOptions, sessions, tcpPort, cts.Token));
 
 http.MapPost("/api/files/upload", async (HttpRequest req) =>
 {
@@ -87,10 +106,10 @@ http.MapGet("/api/files/{id:guid}", async (Guid id) =>
 });
 
 Console.WriteLine("=== Chatting Group Server ===");
-Console.WriteLine($"TCP  : {WireProtocol.TcpPort}");
-Console.WriteLine($"HTTP : {WireProtocol.HttpPort}");
+Console.WriteLine($"TCP  : {tcpPort}");
+Console.WriteLine($"HTTP : {httpPort}");
 Console.WriteLine($"DB   : {dbProvider} ({DescribeDatabase(config, dbProvider)})");
-PrintLan(WireProtocol.TcpPort, WireProtocol.HttpPort);
+PrintLan(tcpPort, httpPort);
 
 static DbContextOptions<AppDbContext> CreateDbOptions(IConfiguration config, string provider)
 {
@@ -131,17 +150,42 @@ static string DescribeDatabase(IConfiguration config, string provider)
     return config.GetConnectionString("Sqlite") ?? "chatting_group.db";
 }
 
-await http.RunAsync(cts.Token);
+try
+{
+    await http.RunAsync(cts.Token);
+}
+finally
+{
+    cts.Cancel();
+}
+
+return 0;
 
 // ─── TCP ──────────────────────────────────────────────────────────────
+static bool IsPortAvailable(int port)
+{
+    try
+    {
+        using var listener = new TcpListener(IPAddress.Any, port);
+        listener.Start();
+        listener.Stop();
+        return true;
+    }
+    catch (SocketException)
+    {
+        return false;
+    }
+}
+
 static async Task RunTcpServerAsync(
     DbContextOptions<AppDbContext> dbOptions,
     ConcurrentDictionary<Guid, ClientSession> sessions,
+    int tcpPort,
     CancellationToken token)
 {
-    var listener = new TcpListener(IPAddress.Any, WireProtocol.TcpPort);
+    var listener = new TcpListener(IPAddress.Any, tcpPort);
     listener.Start();
-    Console.WriteLine($"[TCP] Listening on {WireProtocol.TcpPort}");
+    Console.WriteLine($"[TCP] Listening on {tcpPort}");
 
     while (!token.IsCancellationRequested)
     {

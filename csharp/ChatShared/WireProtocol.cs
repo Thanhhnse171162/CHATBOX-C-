@@ -11,8 +11,8 @@ public static class WireProtocol
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    public const int TcpPort = 5000;
-    public const int HttpPort = 5001;
+    public const int TcpPort = 7000;
+    public const int HttpPort = 7001;
 }
 
 public sealed class WirePacket
