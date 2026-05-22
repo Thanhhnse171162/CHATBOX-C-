@@ -7,6 +7,9 @@ using System.Text.Json;
 using ChatServer.Data;
 using ChatServer.Data.Models;
 using ChatShared;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 
 // ─── Config ───────────────────────────────────────────────────────────
@@ -51,33 +54,32 @@ var sessions = new ConcurrentDictionary<Guid, ClientSession>();
 var cts = new CancellationTokenSource();
 
 var http = WebApplication.CreateBuilder(args).Build();
-http.Urls.Add($"http://0.0.0.0:{httpPort}");
-
-_ = Task.Run(() => RunTcpServerAsync(dbOptions, sessions, tcpPort, cts.Token));
+http.Urls.Add($"http://0.0.0.0:{WireProtocol.HttpPort}");
 
 http.MapPost("/api/files/upload", async (HttpRequest req) =>
 {
     if (!req.Headers.TryGetValue("X-User-Id", out var userHeader) || !Guid.TryParse(userHeader, out var userId))
         return Results.Unauthorized();
 
-    var form = await req.ReadFormAsync();
+    var form = await req.ReadFormAsync(new FormOptions { MultipartBodyLengthLimit = long.MaxValue });
     var file = form.Files.FirstOrDefault();
     if (file == null) return Results.BadRequest(new { error = "No file" });
 
     await using var db = new AppDbContext(dbOptions);
     var storedName = $"{Guid.NewGuid()}-{file.FileName}";
     var path = Path.Combine(uploadRoot, storedName);
-    await using (var fs = File.Create(path))
+    await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, useAsync: true))
     {
         await file.CopyToAsync(fs);
     }
 
+    var contentType = GuessContentType(file.FileName, file.ContentType);
     var record = new FileRecord
     {
         Id = Guid.NewGuid(),
         OriginalName = file.FileName,
         StoredPath = storedName,
-        ContentType = file.ContentType ?? "application/octet-stream",
+        ContentType = contentType,
         Size = file.Length,
         UploadedAtUtc = DateTime.UtcNow,
         UploadedById = userId
@@ -596,6 +598,26 @@ static ChatMessageDto ToDto(Message m, string httpBase)
         SentAt = m.SentAtUtc,
         FileUrl = m.FileRecord == null ? null : $"{httpBase}/api/files/{m.FileRecord.Id}",
         FileName = m.FileRecord?.OriginalName
+    };
+}
+
+static string GuessContentType(string? fileName, string? fallback)
+{
+    if (!string.IsNullOrWhiteSpace(fallback) && fallback != "application/octet-stream")
+        return fallback;
+    var ext = Path.GetExtension(fileName ?? "").ToLowerInvariant();
+    return ext switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" or ".jfif" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".bmp" => "image/bmp",
+        ".pdf" => "application/pdf",
+        ".zip" => "application/zip",
+        ".mp4" => "video/mp4",
+        ".mp3" => "audio/mpeg",
+        _ => "application/octet-stream"
     };
 }
 

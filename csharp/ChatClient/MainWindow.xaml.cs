@@ -10,7 +10,7 @@ namespace ChatClient;
 public partial class MainWindow : Window
 {
     private readonly TcpChatClient _client;
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromHours(2) };
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromHours(6) };
     private readonly Dictionary<Guid, List<ChatMessageDto>> _history = new();
     private readonly List<RoomWireDto> _rooms = new();
     private Guid? _activeRoomId;
@@ -27,6 +27,7 @@ public partial class MainWindow : Window
         _client.Error += msg => Dispatcher.Invoke(() => MessageBox.Show(msg, "Error"));
 
         LoadStickers();
+        LoadEmojis();
         _ = _client.SendAsync(new WirePacket { Op = "rooms" });
     }
 
@@ -137,32 +138,68 @@ public partial class MainWindow : Window
         });
     }
 
+    private async void Image_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Anh|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|Tat ca|*.*"
+        };
+        if (dlg.ShowDialog() == true)
+            await UploadAndSendAsync(dlg.FileName);
+    }
+
     private async void Attach_Click(object sender, RoutedEventArgs e)
     {
-        if (_activeRoomId == null || _client.UserId == null) return;
         var dlg = new Microsoft.Win32.OpenFileDialog();
-        if (dlg.ShowDialog() != true) return;
+        if (dlg.ShowDialog() == true)
+            await UploadAndSendAsync(dlg.FileName);
+    }
+
+    private async Task UploadAndSendAsync(string filePath)
+    {
+        if (_activeRoomId == null || _client.UserId == null) return;
+
+        var fileName = Path.GetFileName(filePath);
+        var roomName = _rooms.FirstOrDefault(r => r.Id == _activeRoomId)?.Name ?? "Chat";
 
         try
         {
-            ChatTitleText.Text = "Uploading...";
-            using var form = new MultipartFormDataContent();
-            await using var fs = File.OpenRead(dlg.FileName);
-            form.Add(new StreamContent(fs), "file", Path.GetFileName(dlg.FileName));
-            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_client.HttpBase}/api/files/upload") { Content = form };
+            var contentType = MediaHelper.IsImageFile(fileName)
+                ? GuessMime(fileName)
+                : "application/octet-stream";
+
+            ChatTitleText.Text = $"Uploading {fileName} (0%)...";
+
+            await using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, useAsync: true);
+            var content = new ProgressStreamContent(fs, 1024 * 1024, pct =>
+            {
+                Dispatcher.Invoke(() => ChatTitleText.Text = $"Uploading {fileName} ({pct}%)...");
+            });
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_client.HttpBase}/api/files/upload-stream")
+            {
+                Content = content
+            };
             req.Headers.Add("X-User-Id", _client.UserId.Value.ToString());
-            var res = await _http.SendAsync(req);
-            res.EnsureSuccessStatusCode();
+            req.Headers.Add("X-File-Name", fileName);
+            req.Headers.Add("X-Content-Type", contentType);
+
+            var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+            if (!res.IsSuccessStatusCode)
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                throw new Exception(string.IsNullOrWhiteSpace(err) ? res.ReasonPhrase ?? "Upload failed" : err);
+            }
+
             var json = await res.Content.ReadAsStringAsync();
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             var root = doc.RootElement;
             var fileId = root.GetProperty("fileId").GetGuid();
             var url = root.GetProperty("url").GetString();
             var name = root.GetProperty("name").GetString();
-            var type = root.TryGetProperty("type", out var t) ? t.GetString() : "";
-            var msgType = type?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true
-                ? MessageType.Image
-                : MessageType.File;
+            var type = root.TryGetProperty("type", out var t) ? t.GetString() : contentType;
+            var msgType = MediaHelper.DetectMessageType(name, type);
 
             await _client.SendAsync(new WirePacket
             {
@@ -174,15 +211,85 @@ public partial class MainWindow : Window
                 FileUrl = url,
                 FileName = name
             });
-            ChatTitleText.Text = _rooms.FirstOrDefault(r => r.Id == _activeRoomId)?.Name ?? "Chat";
+            ChatTitleText.Text = roomName;
         }
         catch (Exception ex)
         {
+            ChatTitleText.Text = roomName;
             MessageBox.Show(ex.Message, "Upload");
         }
     }
 
-    private void Sticker_Click(object sender, RoutedEventArgs e) => StickerPopup.IsOpen = true;
+    private static string GuessMime(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private void Emoji_Click(object sender, RoutedEventArgs e)
+    {
+        StickerPopup.IsOpen = false;
+        EmojiPopup.IsOpen = !EmojiPopup.IsOpen;
+    }
+
+    private void Sticker_Click(object sender, RoutedEventArgs e)
+    {
+        EmojiPopup.IsOpen = false;
+        StickerPopup.IsOpen = !StickerPopup.IsOpen;
+    }
+
+    private async void QuickEmoji_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string emoji)
+            await SendQuickEmojiAsync(emoji);
+    }
+
+    private async Task SendQuickEmojiAsync(string emoji)
+    {
+        if (_activeRoomId == null) return;
+        await _client.SendAsync(new WirePacket
+        {
+            Op = "send",
+            RoomId = _activeRoomId,
+            Content = emoji,
+            Type = MessageType.Text
+        });
+    }
+
+    private void LoadEmojis()
+    {
+        var emojis = "😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗☺😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳🥸😎🤓🧐😕😟🙁☹😮😯😲😳🥺😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠💩🤡👹👺👻👽👾🤖😺😸😹😻😼😽🙀😿😾🙈🙉🙊💋💌💘💝💖💗💓💞💕💟❣💔❤🧡💛💚💙💜🤎🖤🤍👍👎👏🙌👐🤝🙏✌🤞🤟🤘👌🤌🤏✊👊🤛🤜👋🤚🖐✋🖖👆👇☝✍🤳💪🦾🦿🦵🦶👂🦻👃🧠🫀🫁🦷🦴👀👁👅👄🔥💯🎉✨⭐🌟💫⚡🌈☀🌙";
+        foreach (var ch in emojis)
+        {
+            var c = ch.ToString();
+            var btn = new Button
+            {
+                Content = c,
+                Width = 36,
+                Height = 36,
+                Margin = new Thickness(2),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontSize = 20
+            };
+            btn.Click += async (_, _) =>
+            {
+                EmojiPopup.IsOpen = false;
+                if (_activeRoomId == null) return;
+                MessageInput.Text += c;
+                await SendTextAsync();
+            };
+            EmojiPanel.Children.Add(btn);
+        }
+    }
 
     private void LoadStickers()
     {
@@ -195,13 +302,16 @@ public partial class MainWindow : Window
         var files = Directory.GetFiles(dir, "*.png");
         if (files.Length == 0)
         {
-            var btn = new Button { Content = "👍", Width = 40, Height = 40, Margin = new Thickness(2) };
-            btn.Click += async (_, _) =>
+            foreach (var emoji in new[] { "👍", "❤", "🔥", "😂", "🎉", "💯", "😍", "👏", "🙏", "✨" })
             {
-                StickerPopup.IsOpen = false;
-                await SendStickerAsync("👍");
-            };
-            StickerPanel.Children.Add(btn);
+                var btn = new Button { Content = emoji, Width = 44, Height = 44, Margin = new Thickness(2), FontSize = 22 };
+                btn.Click += async (_, _) =>
+                {
+                    StickerPopup.IsOpen = false;
+                    await SendStickerAsync(emoji);
+                };
+                StickerPanel.Children.Add(btn);
+            }
             return;
         }
 
@@ -325,16 +435,11 @@ public partial class MainWindow : Window
         var inner = new StackPanel();
         var fg = msg.IsMine ? Brushes.White : (Brush)FindResource("TextBrush")!;
 
-        if (msg.Type == MessageType.Image && !string.IsNullOrEmpty(msg.FileUrl))
+        if (MediaHelper.ShouldRenderAsImage(msg))
         {
-            inner.Children.Add(new Image
-            {
-                Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(msg.FileUrl)),
-                MaxHeight = 220,
-                Stretch = Stretch.Uniform
-            });
+            inner.Children.Add(MediaHelper.CreateImagePreview(msg.FileUrl, _client.HttpBase, 240));
         }
-        else if (msg.Type == MessageType.File && !string.IsNullOrEmpty(msg.FileUrl))
+        else if (!string.IsNullOrEmpty(msg.FileUrl))
         {
             var fileBtn = new Button
             {
