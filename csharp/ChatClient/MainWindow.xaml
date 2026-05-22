@@ -48,17 +48,33 @@
         </Border>
         <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="12">
           <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="MessageInput" Padding="12" KeyDown="MessageInput_KeyDown"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
-              <Button Content="📎" Width="36" Click="Attach_Click" ToolTip="File"/>
-              <Button Content="😀" Width="36" Click="Sticker_Click" ToolTip="Sticker"/>
-              <Button Content="➤" Width="40" Background="{StaticResource PrimaryBrush}" Foreground="White"
-                      BorderThickness="0" Click="Send_Click" Margin="4,0,0,0"/>
-            </StackPanel>
+            <TextBox x:Name="MessageInput" Grid.Row="0" Grid.Column="0" Padding="12" KeyDown="MessageInput_KeyDown"/>
+            <ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled" Margin="0,8,0,0">
+              <StackPanel Orientation="Horizontal">
+                <Button Content="🖼" Width="36" Height="32" Click="Image_Click" ToolTip="Anh (png, jpg...)"/>
+                <Button Content="📎" Width="36" Height="32" Click="Attach_Click" ToolTip="File bat ky"/>
+                <Button Content="😀" Width="36" Height="32" Click="Emoji_Click" ToolTip="Emoji"/>
+                <Button Content="🎨" Width="36" Height="32" Click="Sticker_Click" ToolTip="Sticker"/>
+                <Button Content="🔥" Width="32" Height="32" Click="QuickEmoji_Click" Tag="🔥" ToolTip="Gui nhanh"/>
+                <Button Content="❤" Width="32" Height="32" Click="QuickEmoji_Click" Tag="❤" ToolTip="Gui nhanh"/>
+                <Button Content="👍" Width="32" Height="32" Click="QuickEmoji_Click" Tag="👍" ToolTip="Gui nhanh"/>
+                <Button Content="💯" Width="32" Height="32" Click="QuickEmoji_Click" Tag="💯" ToolTip="Gui nhanh"/>
+                <Button Content="😂" Width="32" Height="32" Click="QuickEmoji_Click" Tag="😂" ToolTip="Gui nhanh"/>
+                <Button Content="🎉" Width="32" Height="32" Click="QuickEmoji_Click" Tag="🎉" ToolTip="Gui nhanh"/>
+              </StackPanel>
+            </ScrollViewer>
+            <Button Grid.Row="0" Grid.Column="1" Content="➤" Width="44" Height="36"
+                    Background="{StaticResource PrimaryBrush}" Foreground="White"
+                    BorderThickness="0" Click="Send_Click" Margin="8,0,0,0" VerticalAlignment="Center"/>
           </Grid>
         </Border>
         <ScrollViewer x:Name="MessagesScroll" VerticalScrollBarVisibility="Auto">
@@ -76,10 +92,17 @@
         </StackPanel>
       </Border>
 
+      <!-- Emoji popup -->
+      <Popup x:Name="EmojiPopup" PlacementTarget="{Binding ElementName=MessageInput}" Placement="Top" StaysOpen="False">
+        <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="8" MaxWidth="320">
+          <WrapPanel x:Name="EmojiPanel"/>
+        </Border>
+      </Popup>
+
       <!-- Sticker popup -->
-      <Popup x:Name="StickerPopup" Placement="Mouse" StaysOpen="False">
+      <Popup x:Name="StickerPopup" PlacementTarget="{Binding ElementName=MessageInput}" Placement="Top" StaysOpen="False">
         <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="8">
-          <WrapPanel x:Name="StickerPanel" Width="200"/>
+          <WrapPanel x:Name="StickerPanel" Width="240"/>
         </Border>
       </Popup>
     </Grid>
