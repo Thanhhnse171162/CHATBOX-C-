@@ -125,6 +125,16 @@ function showToast(message, type = "info") {
   }, 2500);
 }
 
+function showProgressToast(percent) {
+  toastEl.textContent = `Đang upload file lớn, vui lòng chờ... ${percent}%`;
+  toastEl.style.background = "#0f172a";
+  toastEl.classList.remove("hidden");
+
+  if (toastTimerId) {
+    clearTimeout(toastTimerId);
+  }
+}
+
 function resetChatState() {
   state.me = null;
   state.conversations = [];
@@ -151,7 +161,7 @@ function getActiveMessages() {
   return state.messagesByConversation[state.activeConversationId] || [];
 }
 
-function addMessageNode(message, isLastMyMsg = false, convInitials = "?") {
+function addMessageNode(message, isLastMyMsg = false, convInitials = "?", container = messagesEl) {
   const isSelf = message.senderName === state.me?.name;
 
   // Do not show the "You joined the chat" system message
@@ -224,7 +234,8 @@ function addMessageNode(message, isLastMyMsg = false, convInitials = "?") {
   innerHTML += `</div>`;
   box.innerHTML = innerHTML;
 
-  messagesEl.appendChild(box);
+  container.appendChild(box);
+  return box;
 }
 
 function updateUnreadBadge() {
@@ -269,7 +280,9 @@ function renderMessages() {
   const shouldStickBottom = isNearBottom();
 
   messagesEl.innerHTML = "";
-  messageList.forEach(m => addMessageNode(m, m.id === lastMyMsgId, convInitials));
+  const fragment = document.createDocumentFragment();
+  messageList.forEach(m => addMessageNode(m, m.id === lastMyMsgId, convInitials, fragment));
+  messagesEl.appendChild(fragment);
   
   emptyStateEl.classList.toggle("hidden", messageList.length > 0);
   if (shouldStickBottom) {
@@ -326,6 +339,7 @@ function renderConversations(keyword = "") {
   });
 
   usersListEl.innerHTML = "";
+  const fragment = document.createDocumentFragment();
   filtered.forEach((conversation) => {
     const item = document.createElement("div");
     const isActive = conversation.id === state.activeConversationId;
@@ -380,8 +394,9 @@ function renderConversations(keyword = "") {
       document.getElementById("ctxPin").innerHTML = isPinned ? 'Bỏ ghim <i class="ph-fill ph-push-pin-slash" style="float: right;"></i>' : 'Ghim <i class="ph-fill ph-push-pin" style="float: right;"></i>';
     });
 
-    usersListEl.appendChild(item);
+    fragment.appendChild(item);
   });
+  usersListEl.appendChild(fragment);
 }
 
 let ctxConvId = null;
@@ -596,11 +611,18 @@ async function handleFileUpload(e) {
 
   try {
     setLoading(true);
-    const attachment = await chatService.uploadFile(file);
+    showProgressToast(0);
+
+    const onProgress = (percent) => {
+      showProgressToast(percent);
+    };
+
+    const attachment = await chatService.uploadFile(file, onProgress);
     const text = messageInputEl.value.trim();
     await chatService.sendMessage(state.activeConversationId, text, attachment);
     e.target.value = '';
     messageInputEl.value = '';
+    showToast("Tải lên hoàn tất!", "success");
   } catch (_error) {
     showToast("File upload failed.", "error");
   } finally {
@@ -894,7 +916,25 @@ function initRealtimeSubscriptions() {
       );
       if (message.conversationId === state.activeConversationId) {
         message.seen = true;
-        renderMessages();
+        
+        // Opt: Append single message node instead of re-rendering everything
+        const activeConv = getActiveConversation();
+        const convInitials = activeConv ? (activeConv.name || '?').substring(0, 2).toUpperCase() : '?';
+        const shouldStickBottom = isNearBottom();
+        
+        emptyStateEl.classList.add("hidden");
+        addMessageNode(message, message.senderName === state.me?.name, convInitials);
+        
+        if (shouldStickBottom) scrollMessagesToBottom();
+        updateScrollToBottomButton();
+
+        // Update right sidebar if visible and has media
+        if (rightSidebar && !rightSidebar.classList.contains("hidden")) {
+          if (message.attachment || (message.text && message.text.match(/(https?:\/\/[^\s]+)/g))) {
+            renderFiles();
+            renderLinks();
+          }
+        }
       } else if (!message.isSystem) {
         if (!state.mutedConversations[message.conversationId]) {
           showToast(`New message from ${message.senderName || 'someone'}`);
@@ -902,8 +942,6 @@ function initRealtimeSubscriptions() {
         updateUnreadBadge();
       }
       renderConversations(searchInputEl.value);
-      renderHeader();
-      renderTypingStatus();
     },
     onPresence: (data) => {
       const { users = [], groups = [] } = data;
