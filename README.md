@@ -27,6 +27,15 @@ $env:CHAT_SERVER_URL="http://192.168.1.25:3000"
 npm start
 ```
 
+Qua Internet (ngrok):
+
+```powershell
+$env:CHAT_SERVER_URL="https://xxxx.ngrok-free.app"
+npm start
+```
+
+(Không thêm dấu `/` ở cuối URL.)
+
 (Thay `192.168.1.25` bằng IP của máy HOST.)
 
 ### Bước 3 — Nhắn tin
