@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -53,8 +53,9 @@ if (!IsPortAvailable(httpPort))
 var sessions = new ConcurrentDictionary<Guid, ClientSession>();
 var cts = new CancellationTokenSource();
 
-var http = WebApplication.CreateBuilder(args).Build();
-http.Urls.Add($"http://0.0.0.0:{WireProtocol.HttpPort}");
+var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls($"http://0.0.0.0:{WireProtocol.HttpPort}");
+var http = builder.Build();
 
 http.MapPost("/api/files/upload", async (HttpRequest req) =>
 {
@@ -154,7 +155,10 @@ static string DescribeDatabase(IConfiguration config, string provider)
 
 try
 {
-    await http.RunAsync(cts.Token);
+    var tcpTask  = RunTcpServerAsync(dbOptions, sessions, tcpPort, cts.Token);
+    var httpTask = http.RunAsync(cts.Token);
+
+    await Task.WhenAny(tcpTask, httpTask);
 }
 finally
 {

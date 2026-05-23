@@ -9,11 +9,11 @@
             HorizontalAlignment="Center" VerticalAlignment="Center">
       <StackPanel>
         <TextBlock Text="Sign In" FontSize="24" FontWeight="Bold" Margin="0,0,0,8"/>
-        <TextBlock Text="host:port (TCP) — ví dụ localhost:7000" Foreground="{StaticResource MutedBrush}" Margin="0,0,0,16"/>
+        <TextBlock Text="host:port (TCP) — ví dụ localhost:5005" Foreground="{StaticResource MutedBrush}" Margin="0,0,0,16"/>
         <TextBlock Text="TCP host:port" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
-        <TextBox x:Name="HostBox" Text="localhost:7000" Padding="12" Margin="0,0,0,10"/>
+        <TextBox x:Name="HostBox" Text="localhost:5005" Padding="12" Margin="0,0,0,10"/>
         <TextBlock Text="HTTP port" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
-        <TextBox x:Name="HttpPortBox" Text="7001" Padding="12" Margin="0,0,0,10"/>
+        <TextBox x:Name="HttpPortBox" Text="5001" Padding="12" Margin="0,0,0,10"/>
         <TextBlock Text="Username" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
         <TextBox x:Name="UserBox" Padding="12" Margin="0,0,0,10"/>
         <TextBlock Text="Password" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
