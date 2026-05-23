@@ -3,6 +3,9 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using System.Globalization;
 using ChatShared;
 
 namespace ChatClient;
@@ -26,8 +29,8 @@ public partial class MainWindow : Window
         _client.PacketReceived += OnPacket;
         _client.Error += msg => Dispatcher.Invoke(() => MessageBox.Show(msg, "Error"));
 
-        LoadStickers();
-        LoadEmojis();
+                LoadStickers();
+                LoadEmojis();
         _ = _client.SendAsync(new WirePacket { Op = "rooms" });
     }
 
@@ -246,6 +249,27 @@ public partial class MainWindow : Window
         StickerPopup.IsOpen = !StickerPopup.IsOpen;
     }
 
+    private void Info_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeRoomId == null) return;
+
+        var room = _rooms.FirstOrDefault(r => r.Id == _activeRoomId);
+        var roomName = room?.Name ?? ChatTitleText.Text;
+        var messages = _history.TryGetValue(_activeRoomId.Value, out var list) ? list : new List<ChatMessageDto>();
+
+        var w = new RoomInfoWindow(
+            roomName,
+            messages,
+            _client.HttpBase,
+            (url, title) => OpenImageViewer(url, title),
+            (url, name) => DownloadFileAsync(url, name))
+        {
+            Owner = this
+        };
+
+        w.ShowDialog();
+    }
+
     private async void QuickEmoji_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string emoji)
@@ -266,25 +290,33 @@ public partial class MainWindow : Window
 
     private void LoadEmojis()
     {
+        EmojiPanel.Children.Clear();
+
         var emojis = "😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗☺😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳🥸😎🤓🧐😕😟🙁☹😮😯😲😳🥺😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠💩🤡👹👺👻👽👾🤖😺😸😹😻😼😽🙀😿😾🙈🙉🙊💋💌💘💝💖💗💓💞💕💟❣💔❤🧡💛💚💙💜🤎🖤🤍👍👎👏🙌👐🤝🙏✌🤞🤟🤘👌🤌🤏✊👊🤛🤜👋🤚🖐✋🖖👆👇☝✍🤳💪🦾🦿🦵🦶👂🦻👃🧠🫀🫁🦷🦴👀👁👅👄🔥💯🎉✨⭐🌟💫⚡🌈☀🌙";
-        foreach (var ch in emojis)
+
+        // Important: emojis are often surrogate pairs / sequences.
+        // Enumerate by text elements (graphemes) so we don't split them.
+        var enumerator = StringInfo.GetTextElementEnumerator(emojis);
+        while (enumerator.MoveNext())
         {
-            var c = ch.ToString();
+            var emoji = enumerator.GetTextElement();
             var btn = new Button
             {
-                Content = c,
+                Content = emoji,
                 Width = 36,
                 Height = 36,
                 Margin = new Thickness(2),
+                Padding = new Thickness(0),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
+                FontFamily = new FontFamily("Segoe UI Emoji"),
                 FontSize = 20
             };
             btn.Click += async (_, _) =>
             {
                 EmojiPopup.IsOpen = false;
                 if (_activeRoomId == null) return;
-                MessageInput.Text += c;
+                MessageInput.Text += emoji;
                 await SendTextAsync();
             };
             EmojiPanel.Children.Add(btn);
@@ -437,7 +469,20 @@ public partial class MainWindow : Window
 
         if (MediaHelper.ShouldRenderAsImage(msg))
         {
-            inner.Children.Add(MediaHelper.CreateImagePreview(msg.FileUrl, _client.HttpBase, 240));
+            var preview = MediaHelper.CreateImagePreview(msg.FileUrl, _client.HttpBase, 240);
+            if (preview is Image img)
+            {
+                img.Cursor = Cursors.Hand;
+                img.MouseLeftButtonUp += (_, _) =>
+                {
+                    var resolved = MediaHelper.ResolveFileUrl(msg.FileUrl, _client.HttpBase);
+                    if (!string.IsNullOrWhiteSpace(resolved))
+                    {
+                        OpenImageViewer(resolved, msg.FileName);
+                    }
+                };
+            }
+            inner.Children.Add(preview);
         }
         else if (!string.IsNullOrEmpty(msg.FileUrl))
         {
@@ -476,8 +521,57 @@ public partial class MainWindow : Window
         MessagesPanel.Children.Add(row);
     }
 
+    private void OpenImageViewer(string absoluteUrl, string? title)
+    {
+        try
+        {
+            var w = new Window
+            {
+                Owner = this,
+                Title = string.IsNullOrWhiteSpace(title) ? "Image" : title,
+                Width = 980,
+                Height = 720,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = Brushes.Black
+            };
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.UriSource = new Uri(absoluteUrl, UriKind.Absolute);
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.EndInit();
+
+            var image = new Image
+            {
+                Source = bitmap,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(12)
+            };
+
+            var scroll = new ScrollViewer
+            {
+                Content = image,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            w.Content = scroll;
+            w.KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Escape) w.Close();
+            };
+
+            w.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Image", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async Task DownloadFileAsync(string url, string fileName)
     {
+        url = MediaHelper.ResolveFileUrl(url, _client.HttpBase);
         var save = new Microsoft.Win32.SaveFileDialog { FileName = fileName };
         if (save.ShowDialog() != true) return;
 

@@ -3,87 +3,115 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Realtime Chat Box" Height="820" Width="1280" MinHeight="600" MinWidth="900"
         Background="{StaticResource BgBrush}">
-  <Grid>
+  <Grid Margin="16">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="220"/>
       <ColumnDefinition Width="280"/>
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
 
-    <!-- Left nav -->
-    <Border Grid.Column="0" Background="#FDFDFD" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="16">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Top">
-          <TextBlock x:Name="CurrentUserText" FontWeight="Bold" FontSize="15" Margin="0,0,0,4"/>
-          <TextBlock Text="Online" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,0,0,20"/>
-          <Button Content="+ New Message" Background="{StaticResource PrimaryBrush}" Foreground="White"
-                  BorderThickness="0" Padding="12" Margin="0,0,0,12" Cursor="Hand"/>
-        </StackPanel>
-        <StackPanel DockPanel.Dock="Bottom">
-          <Button Content="Create Group" Click="CreateGroup_Click" HorizontalContentAlignment="Left"
-                  Background="Transparent" BorderThickness="0" Padding="8" Margin="0,4"/>
-          <Button Content="Voice Call" Click="VoiceCall_Click" HorizontalContentAlignment="Left"
-                  Background="Transparent" BorderThickness="0" Padding="8"/>
-          <Button Content="Video Call" Click="VideoCall_Click" HorizontalContentAlignment="Left"
-                  Background="Transparent" BorderThickness="0" Padding="8"/>
-          <Button Content="Logout" Click="Logout_Click" HorizontalContentAlignment="Left"
-                  Background="Transparent" BorderThickness="0" Padding="8" Foreground="#64748B" Margin="0,16,0,0"/>
-        </StackPanel>
-      </DockPanel>
-    </Border>
+        <!-- Left nav -->
+        <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+          CornerRadius="{StaticResource CardRadius}" Padding="14">
+          <DockPanel LastChildFill="True">
+      <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+        <TextBlock Text="Account" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+        <TextBlock x:Name="CurrentUserText" FontWeight="SemiBold" FontSize="16" Margin="0,4,0,2"/>
+        <TextBlock Text="Online" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,0,0,14"/>
+
+        <!-- Not wired to any handler; keep as-is but restyled -->
+        <Button Content="+ New Message" Background="{StaticResource PrimaryBrush}" Foreground="White"
+          BorderThickness="0" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+        <Button Content="Create Group" Click="CreateGroup_Click" HorizontalContentAlignment="Left"
+          Background="#F8FAFC" BorderBrush="#E2E8F0" Margin="0,0,0,8"/>
+        <Button Content="Voice Call" Click="VoiceCall_Click" HorizontalContentAlignment="Left"
+          Background="Transparent" BorderThickness="0" Padding="10,8"/>
+        <Button Content="Video Call" Click="VideoCall_Click" HorizontalContentAlignment="Left"
+          Background="Transparent" BorderThickness="0" Padding="10,8"/>
+        <Border Height="1" Background="{StaticResource LineBrush}" Margin="0,10"/>
+        <Button Content="Logout" Click="Logout_Click" HorizontalContentAlignment="Left"
+          Background="Transparent" BorderThickness="0" Padding="10,8" Foreground="{StaticResource MutedBrush}"/>
+      </StackPanel>
+          </DockPanel>
+        </Border>
 
     <!-- Conversations -->
-    <Border Grid.Column="1" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0">
+    <Border Grid.Column="1" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+            CornerRadius="{StaticResource CardRadius}" Margin="12,0,12,0">
       <DockPanel>
-        <TextBox x:Name="SearchBox" DockPanel.Dock="Top" Margin="12" Padding="10" TextChanged="SearchBox_TextChanged"/>
-        <ListBox x:Name="RoomsList" DisplayMemberPath="Name" SelectionChanged="RoomsList_SelectionChanged" Margin="4"/>
+        <StackPanel DockPanel.Dock="Top" Margin="14,14,14,10">
+          <TextBlock Text="Rooms" FontWeight="SemiBold" FontSize="14"/>
+          <TextBox x:Name="SearchBox" Margin="0,10,0,0" TextChanged="SearchBox_TextChanged"/>
+        </StackPanel>
+        <ListBox x:Name="RoomsList" DisplayMemberPath="Name" SelectionChanged="RoomsList_SelectionChanged" Margin="8"/>
       </DockPanel>
     </Border>
 
     <!-- Chat -->
     <Grid Grid.Column="2">
-      <DockPanel>
-        <Border DockPanel.Dock="Top" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="16,12">
-          <TextBlock x:Name="ChatTitleText" FontWeight="SemiBold" FontSize="16"/>
-        </Border>
-        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="12">
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="MessageInput" Grid.Row="0" Grid.Column="0" Padding="12" KeyDown="MessageInput_KeyDown"/>
-            <ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Disabled" Margin="0,8,0,0">
-              <StackPanel Orientation="Horizontal">
-                <Button Content="🖼" Width="36" Height="32" Click="Image_Click" ToolTip="Anh (png, jpg...)"/>
-                <Button Content="📎" Width="36" Height="32" Click="Attach_Click" ToolTip="File bat ky"/>
-                <Button Content="😀" Width="36" Height="32" Click="Emoji_Click" ToolTip="Emoji"/>
-                <Button Content="🎨" Width="36" Height="32" Click="Sticker_Click" ToolTip="Sticker"/>
-                <Button Content="🔥" Width="32" Height="32" Click="QuickEmoji_Click" Tag="🔥" ToolTip="Gui nhanh"/>
-                <Button Content="❤" Width="32" Height="32" Click="QuickEmoji_Click" Tag="❤" ToolTip="Gui nhanh"/>
-                <Button Content="👍" Width="32" Height="32" Click="QuickEmoji_Click" Tag="👍" ToolTip="Gui nhanh"/>
-                <Button Content="💯" Width="32" Height="32" Click="QuickEmoji_Click" Tag="💯" ToolTip="Gui nhanh"/>
-                <Button Content="😂" Width="32" Height="32" Click="QuickEmoji_Click" Tag="😂" ToolTip="Gui nhanh"/>
-                <Button Content="🎉" Width="32" Height="32" Click="QuickEmoji_Click" Tag="🎉" ToolTip="Gui nhanh"/>
-              </StackPanel>
-            </ScrollViewer>
-            <Button Grid.Row="0" Grid.Column="1" Content="➤" Width="44" Height="36"
-                    Background="{StaticResource PrimaryBrush}" Foreground="White"
-                    BorderThickness="0" Click="Send_Click" Margin="8,0,0,0" VerticalAlignment="Center"/>
-          </Grid>
-        </Border>
-        <ScrollViewer x:Name="MessagesScroll" VerticalScrollBarVisibility="Auto">
-          <StackPanel x:Name="MessagesPanel" Margin="12"/>
-        </ScrollViewer>
-      </DockPanel>
+      <!-- Main chat card -->
+      <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+              CornerRadius="{StaticResource CardRadius}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
 
-      <!-- Download panel -->
-      <Border x:Name="DownloadPanel" Background="#2B2B2B" CornerRadius="8" Padding="14" Width="380"
+          <!-- Header -->
+          <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1"
+                  Padding="16,14">
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="i" Width="34" Height="34" Margin="10,0,0,0"
+                      Background="Transparent" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                      Foreground="{StaticResource MutedBrush}" FontWeight="SemiBold"
+                      Click="Info_Click" ToolTip="Thong tin phong"/>
+              <StackPanel>
+                <TextBlock x:Name="ChatTitleText" FontWeight="SemiBold" FontSize="16"/>
+                <TextBlock Text="Messages" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,3,0,0"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+
+          <!-- Messages -->
+          <ScrollViewer Grid.Row="1" x:Name="MessagesScroll" VerticalScrollBarVisibility="Auto" Background="Transparent">
+            <StackPanel x:Name="MessagesPanel" Margin="14"/>
+          </ScrollViewer>
+
+          <!-- Composer -->
+          <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="12">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBox x:Name="MessageInput" Grid.Row="0" Grid.Column="0" KeyDown="MessageInput_KeyDown" FontFamily="Segoe UI Emoji"/>
+
+              <Button Grid.Row="0" Grid.Column="1" Content="Send" MinWidth="84" Height="44"
+                      Background="{StaticResource PrimaryBrush}" Foreground="White"
+                      BorderThickness="0" Click="Send_Click" Margin="10,0,0,0" FontWeight="SemiBold"/>
+
+              <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,10,0,0">
+                <Button Content="🖼" Width="44" Height="36" Click="Image_Click" ToolTip="Anh (png, jpg...)" Padding="0"/>
+                <Button Content="📎" Width="44" Height="36" Click="Attach_Click" ToolTip="File bat ky" Padding="0" Margin="8,0,0,0"/>
+                <Button Content="😀" Width="44" Height="36" Click="Emoji_Click" ToolTip="Emoji" Padding="0" Margin="8,0,0,0"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+
+      <!-- Download panel (overlay) -->
+      <Border x:Name="DownloadPanel" Background="#111827" CornerRadius="12" Padding="14" Width="380"
               HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16" Visibility="Collapsed">
         <StackPanel>
           <TextBlock x:Name="DownloadNameText" Foreground="White" FontWeight="SemiBold"/>
@@ -94,14 +122,18 @@
 
       <!-- Emoji popup -->
       <Popup x:Name="EmojiPopup" PlacementTarget="{Binding ElementName=MessageInput}" Placement="Top" StaysOpen="False">
-        <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="8" MaxWidth="320">
-          <WrapPanel x:Name="EmojiPanel"/>
+        <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                CornerRadius="16" Padding="10" MaxWidth="320">
+          <ScrollViewer Width="320" Height="420" VerticalScrollBarVisibility="Auto">
+            <WrapPanel x:Name="EmojiPanel"/>
+          </ScrollViewer>
         </Border>
       </Popup>
 
       <!-- Sticker popup -->
       <Popup x:Name="StickerPopup" PlacementTarget="{Binding ElementName=MessageInput}" Placement="Top" StaysOpen="False">
-        <Border Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="8">
+        <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                CornerRadius="16" Padding="10">
           <WrapPanel x:Name="StickerPanel" Width="240"/>
         </Border>
       </Popup>
