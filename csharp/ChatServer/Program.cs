@@ -490,7 +490,8 @@ static async Task HandleSendAsync(
         Content = msg.Content,
         Type = msg.Type,
         SentAt = msg.SentAtUtc,
-        FileUrl = file == null ? packet.FileUrl : $"http://localhost:{WireProtocol.HttpPort}/api/files/{file.Id}",
+        // Use relative URL so clients on other machines don't break due to hard-coded localhost.
+        FileUrl = file == null ? packet.FileUrl : $"/api/files/{file.Id}",
         FileName = file?.OriginalName ?? packet.FileName
     };
 
@@ -615,7 +616,8 @@ static ChatMessageDto ToDto(Message m, string httpBase)
         Content = m.Content,
         Type = m.Type,
         SentAt = m.SentAtUtc,
-        FileUrl = m.FileRecord == null ? null : $"{httpBase}/api/files/{m.FileRecord.Id}",
+        // Use relative URL; client resolves with its configured HttpBase.
+        FileUrl = m.FileRecord == null ? null : $"/api/files/{m.FileRecord.Id}",
         FileName = m.FileRecord?.OriginalName
     };
 }
