@@ -9,12 +9,14 @@
     let isRegisterMode = false;
     let pendingFile = null; // { file, type, previewUrl }
     let typingTimeout = null;
+    let serverBase = ''; // hold the server base URL
 
     // ── DOM refs ──
     const $ = (s) => document.querySelector(s);
     const loginScreen = $('#login-screen');
     const chatScreen = $('#chat-screen');
     const loginForm = $('#login-form');
+    const loginServerHost = $('#login-server-host');
     const loginUsername = $('#login-username');
     const loginPassword = $('#login-password');
     const loginDisplayName = $('#login-displayname');
@@ -59,9 +61,25 @@
     const toastContainer = $('#toast-container');
 
     // ── Init SignalR ──
-    function initSignalR() {
+    function initSignalR(serverHost) {
+        if (!serverHost) {
+            serverHost = window.location.host;
+        }
+
+        let protocol = window.location.protocol;
+        // If it starts with http:// or https://, extract the host
+        if (serverHost.startsWith('http://')) {
+            protocol = 'http:';
+            serverHost = serverHost.substring(7);
+        } else if (serverHost.startsWith('https://')) {
+            protocol = 'https:';
+            serverHost = serverHost.substring(8);
+        }
+
+        serverBase = `${protocol}//${serverHost}`;
+
         connection = new signalR.HubConnectionBuilder()
-            .withUrl('/chatHub')
+            .withUrl(serverBase + '/chatHub')
             .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
             .configureLogging(signalR.LogLevel.Warning)
             .build();
@@ -221,12 +239,16 @@
         switch (m.type) {
             case 1: // Image
                 content += `<div>${escHtml(m.content || '')}</div>`;
-                if (m.fileUrl) content += `<img class="msg-image" src="${m.fileUrl}" alt="image" loading="lazy" onclick="window.open(this.src)">`;
+                if (m.fileUrl) {
+                    const fullUrl = m.fileUrl.startsWith('http') ? m.fileUrl : (serverBase + m.fileUrl);
+                    content += `<img class="msg-image" src="${fullUrl}" alt="image" loading="lazy" onclick="window.open(this.src)">`;
+                }
                 break;
             case 2: // File
                 content += `<div>${escHtml(m.content || '')}</div>`;
                 if (m.fileUrl) {
-                    content += `<a class="msg-file" href="${m.fileUrl}" target="_blank" download>
+                    const fullUrl = m.fileUrl.startsWith('http') ? m.fileUrl : (serverBase + m.fileUrl);
+                    content += `<a class="msg-file" href="${fullUrl}" target="_blank" download>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         <span>${escHtml(m.fileName || 'File')}</span>
                     </a>`;
@@ -271,7 +293,7 @@
             const formData = new FormData();
             formData.append('file', pendingFile.file);
             try {
-                const resp = await fetch('/api/files/upload', {
+                const resp = await fetch(serverBase + '/api/files/upload', {
                     method: 'POST',
                     headers: { 'X-User-Id': currentUser.id },
                     body: formData
@@ -358,8 +380,13 @@
         btnLogin.querySelector('span').textContent = 'Đang xử lý...';
 
         try {
-            if (!connection || connection.state !== 'Connected') {
-                await initSignalR();
+            const serverHost = loginServerHost.value.trim() || window.location.host;
+
+            if (!connection || !serverBase.includes(serverHost) || connection.state !== 'Connected') {
+                if (connection) {
+                    await connection.stop().catch(() => {});
+                }
+                await initSignalR(serverHost);
             }
 
             const username = loginUsername.value.trim();
@@ -459,7 +486,10 @@
     btnBackSidebar.addEventListener('click', () => sidebar.classList.remove('hidden'));
 
     // ── Pre-connect SignalR on page load ──
-    initSignalR().catch(() => {
+    if (loginServerHost) {
+        loginServerHost.value = window.location.host;
+    }
+    initSignalR(window.location.host).catch(() => {
         console.warn('SignalR pre-connect failed, will retry on login.');
     });
 })();
