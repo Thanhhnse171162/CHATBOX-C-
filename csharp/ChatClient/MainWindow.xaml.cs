@@ -1,7 +1,9 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -23,14 +25,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _client = client;
-        CurrentUserText.Text = client.DisplayName;
+        AvatarInitial.Text = !string.IsNullOrWhiteSpace(client.DisplayName) ? client.DisplayName[0].ToString().ToUpper() : "?";
         ChatTitleText.Text = "Messages";
 
         _client.PacketReceived += OnPacket;
         _client.Error += msg => Dispatcher.Invoke(() => MessageBox.Show(msg, "Error"));
 
-                LoadStickers();
-                LoadEmojis();
+        LoadStickers();
+        LoadEmojis();
         _ = _client.SendAsync(new WirePacket { Op = "rooms" });
     }
 
@@ -292,34 +294,106 @@ public partial class MainWindow : Window
     {
         EmojiPanel.Children.Clear();
 
-        var emojis = "😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗☺😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔🤐🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳🥸😎🤓🧐😕😟🙁☹😮😯😲😳🥺😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠💩🤡👹👺👻👽👾🤖😺😸😹😻😼😽🙀😿😾🙈🙉🙊💋💌💘💝💖💗💓💞💕💟❣💔❤🧡💛💚💙💜🤎🖤🤍👍👎👏🙌👐🤝🙏✌🤞🤟🤘👌🤌🤏✊👊🤛🤜👋🤚🖐✋🖖👆👇☝✍🤳💪🦾🦿🦵🦶👂🦻👃🧠🫀🫁🦷🦴👀👁👅👄🔥💯🎉✨⭐🌟💫⚡🌈☀🌙";
-
-        // Important: emojis are often surrogate pairs / sequences.
-        // Enumerate by text elements (graphemes) so we don't split them.
-        var enumerator = StringInfo.GetTextElementEnumerator(emojis);
-        while (enumerator.MoveNext())
+        var categories = new (string Label, string[] Emojis)[]
         {
-            var emoji = enumerator.GetTextElement();
-            var btn = new Button
+            ("Recent", new[] { "👍", "❤️", "😂", "🔥", "🙏", "💯", "😊", "🎉", "🤣", "😅", "😍", "😘", "😎", "🥳", "🥺", "🥰" }),
+            ("Faces - Smileys", new[] {
+                "😀","😃","😄","😁","😆","😅","🤣","😂",
+                "🙂","🙃","😉","😊","😇","🥰","😍","🤩",
+                "😘","😗","😚","😙","🥲","😋","😛","😜",
+                "🤪","😝","🤑","🤗","🤭","🤫","🤔","🫡",
+                "🤐","🤨","😐","😑","😶","😏","😒","🙄",
+                "😬","🤥","😌","😔","😪","🤤","😴","😷",
+                "🤒","🤕","🤢","🤮","🤧","🥵","🥶","🥴",
+                "😵","🤯","🤠","🥳","🥸","😎","🤓","🧐",
+                "😕","😟","🙁","☹️","😮","😯","😲","😳",
+                "🥺","😦","😧","😨","😰","😥","😢","😭",
+                "😱","😖","😣","😞","😓","😩","😫","🥱",
+                "😤","😡","😠","🤬","😈","👿","💀","☠️",
+                "💩","🤡","👹","👺","👻","👽","👾","🤖"
+            }),
+            ("Hearts & Symbols", new[] {
+                "❤️","🧡","💛","💚","💙","💜","🖤","🤍",
+                "🤎","💔","❤️‍🔥","❤️‍🩹","💕","💞","💓","💗",
+                "💖","💘","💝","💟","☮️","✨","⭐","🌟",
+                "💫","🔥","💥","🎯","💎","👑","💯","✅",
+                "🎉","🎊","🎈","🎁","🥳","🏆","🥇","🎖️"
+            }),
+            ("People & Hands", new[] {
+                "👋","🤚","🖐️","✋","🖖","🤙","💪","🦾",
+                "👍","👎","👏","🙌","🤲","🤝","🙏","✌️",
+                "🤞","🤟","🤘","👈","👉","👆","👇",
+                "☝️","👌","🤌","🤏","🫶","🫂","💏"
+            }),
+            ("Animals", new[] {
+                "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼",
+                "🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈",
+                "🙉","🙊","🐔","🐧","🐦","🐤","🦆","🦅",
+                "🦉","🦇","🐺","🦄","🐝","🦋","🐌","🐞"
+            }),
+            ("Food", new[] {
+                "🍎","🍊","🍋","🍇","🍓","🫐","🍒","🍑",
+                "🥭","🍍","🥥","🥝","🍅","🫒","🥑","🍆",
+                "🌽","🍕","🍔","🍟","🌭","🍿","🧂","🥓",
+                "🍜","🍱","🍣","🍦","🎂","🍰","🧁","🍩"
+            }),
+        };
+
+        foreach (var (label, emojis) in categories)
+        {
+            EmojiPanel.Children.Add(new TextBlock
             {
-                Content = emoji,
-                Width = 36,
-                Height = 36,
-                Margin = new Thickness(2),
-                Padding = new Thickness(0),
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                FontFamily = new FontFamily("Segoe UI Emoji"),
-                FontSize = 20
-            };
-            btn.Click += async (_, _) =>
+                Text       = label,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
+                FontSize   = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(101, 103, 107)),
+                Margin     = new Thickness(6, 12, 6, 6),
+                Width      = 320,
+            });
+
+            foreach (var emoji in emojis)
             {
-                EmojiPopup.IsOpen = false;
-                if (_activeRoomId == null) return;
-                MessageInput.Text += emoji;
-                await SendTextAsync();
-            };
-            EmojiPanel.Children.Add(btn);
+                var emojiCopy = emoji;
+
+                var btn = new Button
+                {
+                    Width = 38,
+                    Height = 38,
+                    Background = Brushes.Transparent,
+                    BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand,
+                    Tag = emojiCopy,
+                    ToolTip = emojiCopy
+                };
+
+                var tb = new TextBlock
+                {
+                    Text = emojiCopy,
+                    FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                    FontSize = 24,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                System.Windows.Media.TextOptions.SetTextFormattingMode(tb, TextFormattingMode.Display);
+                System.Windows.Media.TextOptions.SetTextRenderingMode(tb, TextRenderingMode.ClearType);
+
+                btn.Content = tb;
+                btn.Click += async (s, e) => {
+                    EmojiPopup.IsOpen = false;
+                    if (_activeRoomId == null) return;
+                    MessageInput.Text += emojiCopy;
+                    await SendTextAsync();
+                };
+
+                // Hover effect
+                btn.MouseEnter += (s, e) =>
+                    btn.Background = new SolidColorBrush(Color.FromRgb(240, 242, 245));
+                btn.MouseLeave += (s, e) =>
+                    btn.Background = Brushes.Transparent;
+
+                EmojiPanel.Children.Add(btn);
+            }
         }
     }
 
@@ -415,6 +489,25 @@ public partial class MainWindow : Window
     private void RenderMessages(List<ChatMessageDto> messages)
     {
         MessagesPanel.Children.Clear();
+
+        // Add Date Separator "TODAY"
+        var sepBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(240, 242, 245)),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(8, 4, 8, 4),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 12, 0, 16)
+        };
+        sepBorder.Child = new TextBlock
+        {
+            Text = "TODAY",
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(101, 103, 107)),
+            FontWeight = FontWeights.Bold
+        };
+        MessagesPanel.Children.Add(sepBorder);
+
         foreach (var m in messages)
         {
             m.IsMine = m.SenderId == _client.UserId;
@@ -430,42 +523,48 @@ public partial class MainWindow : Window
             MessagesPanel.Children.Add(new TextBlock
             {
                 Text = msg.Content,
-                Foreground = Brushes.Gray,
+                Foreground = new SolidColorBrush(Color.FromRgb(101, 103, 107)),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 6, 0, 6)
+                Margin = new Thickness(0, 6, 0, 6),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold
             });
             return;
         }
 
         var row = new StackPanel
         {
-            Margin = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(0, 2, 0, 8),
             HorizontalAlignment = msg.IsMine ? HorizontalAlignment.Right : HorizontalAlignment.Left,
             MaxWidth = 480
         };
 
         if (!msg.IsMine)
         {
+            // Name label — dùng helper method, không dùng Converter trực tiếp
             row.Children.Add(new TextBlock
             {
                 Text = msg.SenderName,
-                FontSize = 11,
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(4, 0, 0, 2)
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = NameToColorBrush(msg.SenderName),
+                Margin = new Thickness(4, 0, 0, 3)
             });
         }
 
         var bubble = new Border
         {
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(12, 8, 12, 8),
-            Background = msg.IsMine ? (Brush)FindResource("PrimaryBrush")! : Brushes.White,
-            BorderBrush = (Brush)FindResource("LineBrush")!,
-            BorderThickness = msg.IsMine ? new Thickness(0) : new Thickness(1)
+            CornerRadius = msg.IsMine ? new CornerRadius(18, 18, 4, 18) : new CornerRadius(18, 18, 18, 4),
+            Padding = new Thickness(12, 9, 12, 9),
+            Background = msg.IsMine
+                ? new SolidColorBrush(Color.FromRgb(0, 132, 255))
+                : new SolidColorBrush(Color.FromRgb(240, 242, 245))
         };
 
         var inner = new StackPanel();
-        var fg = msg.IsMine ? Brushes.White : (Brush)FindResource("TextBrush")!;
+        var fg = msg.IsMine
+            ? Brushes.White
+            : new SolidColorBrush(Color.FromRgb(28, 30, 33));
 
         if (MediaHelper.ShouldRenderAsImage(msg))
         {
@@ -482,7 +581,17 @@ public partial class MainWindow : Window
                     }
                 };
             }
-            inner.Children.Add(preview);
+
+            // Image border styling
+            var imgBorder = new Border
+            {
+                CornerRadius = new CornerRadius(14),
+                ClipToBounds = true,
+                Child = preview
+            };
+            inner.Children.Add(imgBorder);
+            bubble.Padding = new Thickness(4);
+            bubble.Background = Brushes.Transparent;
         }
         else if (!string.IsNullOrEmpty(msg.FileUrl))
         {
@@ -493,31 +602,71 @@ public partial class MainWindow : Window
                 BorderThickness = new Thickness(0),
                 Foreground = fg,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Cursor = System.Windows.Input.Cursors.Hand
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                FontSize = 14
             };
             fileBtn.Click += async (_, _) => await DownloadFileAsync(msg.FileUrl!, msg.FileName ?? "file");
             inner.Children.Add(fileBtn);
         }
         else
         {
-            inner.Children.Add(new TextBlock
+            var textContent = msg.Type == MessageType.Sticker
+                ? $"[Sticker] {msg.Content}"
+                : msg.Content;
+
+            // dùng helper method thay vì Converter trực tiếp
+            var isEmojiOnly = IsEmojiOnly(textContent);
+
+            var tb = new TextBlock
             {
-                Text = msg.Type == MessageType.Sticker ? $"[Sticker] {msg.Content}" : msg.Content,
+                Text = textContent,
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = fg
-            });
+                Foreground = fg,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                FontSize = isEmojiOnly ? 42 : 14
+            };
+            System.Windows.Media.TextOptions.SetTextFormattingMode(tb, TextFormattingMode.Display);
+
+            if (isEmojiOnly)
+            {
+                bubble.Background = Brushes.Transparent;
+                bubble.Padding = new Thickness(0);
+            }
+
+            inner.Children.Add(tb);
         }
 
         bubble.Child = inner;
         row.Children.Add(bubble);
-        row.Children.Add(new TextBlock
+
+        // Timestamp row
+        var bottomInfo = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = msg.IsMine ? HorizontalAlignment.Right : HorizontalAlignment.Left
+        };
+
+        if (msg.IsMine)
+        {
+            bottomInfo.Children.Add(new TextBlock
+            {
+                Text = "👍❤️",
+                FontSize = 12,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                Margin = new Thickness(0, 3, 6, 0)
+            });
+        }
+
+        bottomInfo.Children.Add(new TextBlock
         {
             Text = msg.TimeText,
-            FontSize = 10,
-            Foreground = Brushes.Gray,
-            HorizontalAlignment = msg.IsMine ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-            Margin = new Thickness(4, 2, 0, 0)
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(188, 192, 196)),
+            Margin = new Thickness(msg.IsMine ? 0 : 4, 3, msg.IsMine ? 4 : 0, 0)
         });
+
+        row.Children.Add(bottomInfo);
         MessagesPanel.Children.Add(row);
     }
 
@@ -628,5 +777,67 @@ public partial class MainWindow : Window
     {
         await _client.DisposeAsync();
         base.OnClosed(e);
+    }
+
+    // ── Helper: avatar color by name ──────────────────────────────────
+    private static SolidColorBrush NameToColorBrush(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return new SolidColorBrush(Color.FromRgb(0, 132, 255));
+
+        return char.ToUpper(name[0]) switch
+        {
+            'A' => new SolidColorBrush(Color.FromRgb(255, 107, 107)),
+            'B' => new SolidColorBrush(Color.FromRgb(78,  205, 196)),
+            'C' => new SolidColorBrush(Color.FromRgb(69,  183, 209)),
+            'D' => new SolidColorBrush(Color.FromRgb(231, 76,  60)),
+            'E' => new SolidColorBrush(Color.FromRgb(46,  204, 113)),
+            'G' => new SolidColorBrush(Color.FromRgb(155, 89,  182)),
+            'H' => new SolidColorBrush(Color.FromRgb(243, 156, 18)),
+            'K' => new SolidColorBrush(Color.FromRgb(26,  188, 156)),
+            'L' => new SolidColorBrush(Color.FromRgb(142, 68,  173)),
+            'M' => new SolidColorBrush(Color.FromRgb(78,  205, 196)),
+            'N' => new SolidColorBrush(Color.FromRgb(150, 206, 180)),
+            'P' => new SolidColorBrush(Color.FromRgb(253, 121, 168)),
+            'Q' => new SolidColorBrush(Color.FromRgb(108, 92,  231)),
+            'S' => new SolidColorBrush(Color.FromRgb(69,  183, 209)),
+            'T' => new SolidColorBrush(Color.FromRgb(79,  156, 249)),
+            'V' => new SolidColorBrush(Color.FromRgb(52,  152, 219)),
+            'X' => new SolidColorBrush(Color.FromRgb(255, 118, 117)),
+            _   => new SolidColorBrush(Color.FromRgb(0,   132, 255)),
+        };
+    }
+
+    // ── Helper: detect emoji-only message ─────────────────────────────
+    private static bool IsEmojiOnly(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var clean = text.Trim();
+        if (clean.Length > 12) return false;
+
+        // Count text elements (handles multi-codepoint emoji)
+        var enumerator = StringInfo.GetTextElementEnumerator(clean);
+        int count = 0;
+        while (enumerator.MoveNext())
+        {
+            count++;
+            if (count > 3) return false; // max 3 emoji
+        }
+
+        // Validate all chars are emoji-related
+        foreach (var c in clean)
+        {
+            // ZWJ, variation selector, combining enclosing keycap
+            if (c == '\u200D' || c == '\uFE0F' || c == '\u20E3') continue;
+            // Surrogate pairs (most emoji on Windows)
+            if (c >= '\uD800' && c <= '\uDFFF') continue;
+            // High codepoint symbols
+            if (c > '\u2000') continue;
+            // Whitespace between emoji
+            if (char.IsWhiteSpace(c)) continue;
+            // Anything else = not emoji only
+            return false;
+        }
+        return count > 0;
     }
 }

@@ -73,4 +73,16 @@ public partial class LoginWindow : Window
 
         return (input.Trim(), defaultPort);
     }
+
+    private void TestUI_Click(object sender, RoutedEventArgs e)
+    {
+        var client = new TcpChatClient("localhost", 5000, 5001)
+        {
+            UserId = Guid.NewGuid(),
+            DisplayName = "TestUser"
+        };
+        var main = new MainWindow(client);
+        main.Show();
+        Close();
+    }
 }

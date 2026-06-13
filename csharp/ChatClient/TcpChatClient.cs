@@ -16,8 +16,8 @@ public sealed class TcpChatClient : IAsyncDisposable
     public string Host { get; }
     public int TcpPort { get; }
     public int HttpPort { get; }
-    public Guid? UserId { get; private set; }
-    public string DisplayName { get; private set; } = "";
+    public Guid? UserId { get; set; }
+    public string DisplayName { get; set; } = "";
 
     public event Action<WirePacket>? PacketReceived;
     public event Action<string>? Error;
@@ -90,11 +90,17 @@ public sealed class TcpChatClient : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _readCts?.Cancel();
         _reader?.Dispose();
         _writer?.Dispose();
         _tcp?.Close();
+        return ValueTask.CompletedTask;
+    }
+
+    public void InvokeMockPacket(WirePacket packet)
+    {
+        PacketReceived?.Invoke(packet);
     }
 }

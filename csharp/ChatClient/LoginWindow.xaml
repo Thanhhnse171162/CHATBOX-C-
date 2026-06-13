@@ -9,7 +9,8 @@
             HorizontalAlignment="Center" VerticalAlignment="Center">
       <StackPanel>
         <TextBlock Text="Sign In" FontSize="24" FontWeight="Bold" Margin="0,0,0,8"/>
-        <TextBlock Text="host:port (TCP) — ví dụ localhost:5000" Foreground="{StaticResource MutedBrush}" Margin="0,0,0,16"/>
+        <TextBlock Text="host:port (TCP) — ví dụ localhost:5000"
+                   Foreground="{StaticResource MutedBrush}" Margin="0,0,0,16"/>
         <TextBlock Text="TCP host:port" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
         <TextBox x:Name="HostBox" Text="localhost:5000" Padding="12" Margin="0,0,0,10"/>
         <TextBlock Text="HTTP port" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
@@ -20,8 +21,13 @@
         <PasswordBox x:Name="PassBox" Padding="12" Margin="0,0,0,10"/>
         <TextBlock x:Name="StatusText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,0,0,8"/>
         <Button Content="Join Chat" Click="Join_Click" Background="{StaticResource PrimaryBrush}"
-                Foreground="White" FontWeight="SemiBold" Padding="14" BorderThickness="0" Cursor="Hand" Margin="0,4,0,0"/>
-        <Button Content="Register" Click="Register_Click" Background="Transparent" Foreground="{StaticResource PrimaryBrush}"
+                Foreground="White" FontWeight="SemiBold" Padding="14"
+                BorderThickness="0" Cursor="Hand" Margin="0,4,0,0"/>
+        <Button Content="Register" Click="Register_Click" Background="Transparent"
+                Foreground="{StaticResource PrimaryBrush}"
+                BorderThickness="0" Margin="0,8,0,0" Cursor="Hand"/>
+        <Button Content="Vào xem UI (Không kết nối)" Click="TestUI_Click" Background="Transparent"
+                Foreground="#888888" FontSize="11"
                 BorderThickness="0" Margin="0,8,0,0" Cursor="Hand"/>
       </StackPanel>
     </Border>

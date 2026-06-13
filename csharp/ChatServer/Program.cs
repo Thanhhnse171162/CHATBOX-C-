@@ -38,7 +38,9 @@ if (!IsPortAvailable(tcpPort))
 {
     Console.Error.WriteLine($"[ERROR] TCP port {tcpPort} is already in use.");
     Console.Error.WriteLine("Stop the other ChatServer window (Ctrl+C) or run:");
-    Console.Error.WriteLine($"  Get-NetTCPConnection -LocalPort {tcpPort} | %% Stop-Process -Id OwningProcess -Force");
+    Console.Error.WriteLine($"  Get-NetTCPConnection -LocalPort {tcpPort} | % Stop-Process -Id OwningProcess -Force");
+    Console.WriteLine("Press Enter to exit...");
+    Console.ReadLine();
     return 1;
 }
 
@@ -46,7 +48,9 @@ if (!IsPortAvailable(httpPort))
 {
     Console.Error.WriteLine($"[ERROR] HTTP port {httpPort} is already in use.");
     Console.Error.WriteLine("Stop the other ChatServer window (Ctrl+C) or run:");
-    Console.Error.WriteLine($"  Get-NetTCPConnection -LocalPort {httpPort} | %% Stop-Process -Id OwningProcess -Force");
+    Console.Error.WriteLine($"  Get-NetTCPConnection -LocalPort {httpPort} | % Stop-Process -Id OwningProcess -Force");
+    Console.WriteLine("Press Enter to exit...");
+    Console.ReadLine();
     return 1;
 }
 
@@ -158,7 +162,19 @@ try
     var tcpTask  = RunTcpServerAsync(dbOptions, sessions, tcpPort, cts.Token);
     var httpTask = http.RunAsync(cts.Token);
 
-    await Task.WhenAny(tcpTask, httpTask);
+    var completedTask = await Task.WhenAny(tcpTask, httpTask);
+    await completedTask; // Re-throw any exception from the failed task
+}
+catch (OperationCanceledException)
+{
+    // Ignore graceful cancellation
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[FATAL ERROR] {ex.Message}");
+    Console.WriteLine(ex.StackTrace);
+    Console.WriteLine("Press Enter to exit...");
+    Console.ReadLine();
 }
 finally
 {
