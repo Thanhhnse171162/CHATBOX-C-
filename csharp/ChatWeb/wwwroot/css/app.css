@@ -1453,6 +1453,74 @@ button {
     gap: 8px;
 }
 
+/* ── Record Box ── */
+.record-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.record-cancel {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: var(--t);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.record-cancel svg {
+    width: 32px;
+    height: 32px;
+}
+
+.record-bubble {
+    flex: 1;
+    height: 44px;
+    background: var(--blue);
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px 0 6px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.record-stop {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.record-stop svg {
+    width: 28px;
+    height: 28px;
+}
+
+.record-timer {
+    background: #fff;
+    color: var(--blue);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 16px;
+    margin-right: 4px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .compose-box {
     flex: 1;
     display: flex;

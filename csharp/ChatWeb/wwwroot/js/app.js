@@ -794,9 +794,40 @@
 
     // ── Voice Recording ──
     const btnRecordVoice = $('#btn-record-voice');
+    const composeBox = $('#compose-box');
+    const recordBox = $('#record-box');
+    const btnCancelRecord = $('#btn-cancel-record');
+    const btnStopRecord = $('#btn-stop-record');
+    const recordTimer = $('#record-timer');
+    
     let mediaRecorder;
     let audioChunks = [];
     let isRecording = false;
+    let isCancelled = false;
+    let recordInterval;
+    let recordSeconds = 0;
+
+    const startTimer = () => {
+        recordSeconds = 0;
+        if(recordTimer) recordTimer.textContent = '0:00';
+        recordInterval = setInterval(() => {
+            recordSeconds++;
+            const m = Math.floor(recordSeconds / 60);
+            const s = recordSeconds % 60;
+            if(recordTimer) recordTimer.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        }, 1000);
+    };
+
+    const stopTimer = () => {
+        clearInterval(recordInterval);
+    };
+
+    const resetRecordUI = () => {
+        if (composeBox && recordBox) {
+            composeBox.style.display = '';
+            recordBox.style.display = 'none';
+        }
+    };
 
     if (btnRecordVoice) {
         btnRecordVoice.addEventListener('click', async () => {
@@ -805,34 +836,53 @@
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
+                    isCancelled = false;
 
                     mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
 
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        const file = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
-                        pendingFile = { file, type: 2, previewUrl: null };
-                        sendMessage();
+                        if (!isCancelled && audioChunks.length > 0) {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            const file = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+                            pendingFile = { file, type: 2, previewUrl: null };
+                            sendMessage();
+                        }
                     };
 
                     mediaRecorder.start();
                     isRecording = true;
-                    btnRecordVoice.style.color = '#ff3b30';
-                    if (messageInput) {
-                        messageInput.placeholder = 'Đang ghi âm... (Bấm mic lần nữa để Gửi)';
-                        messageInput.disabled = true;
+                    
+                    if (composeBox && recordBox) {
+                        composeBox.style.display = 'none';
+                        recordBox.style.display = 'flex';
                     }
+                    startTimer();
                 } catch (err) {
                     showToast('Không có quyền sử dụng Microphone', 'error');
                 }
-            } else {
+            }
+        });
+    }
+
+    if (btnCancelRecord) {
+        btnCancelRecord.addEventListener('click', () => {
+            if (isRecording) {
+                isCancelled = true;
                 mediaRecorder.stop();
                 isRecording = false;
-                btnRecordVoice.style.color = '';
-                if (messageInput) {
-                    messageInput.placeholder = 'Nhập tin nhắn...';
-                    messageInput.disabled = false;
-                }
+                stopTimer();
+                resetRecordUI();
+            }
+        });
+    }
+
+    if (btnStopRecord) {
+        btnStopRecord.addEventListener('click', () => {
+            if (isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                stopTimer();
+                resetRecordUI();
             }
         });
     }
