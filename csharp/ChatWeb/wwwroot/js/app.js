@@ -318,8 +318,9 @@
     function appendMessage(m) {
         // ── FIX 2: Tách biệt push data và gọi updateInfoSidebar() ──
         let infoChanged = false;
+        const isImageFile = m.fileName && /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(m.fileName);
 
-        if (m.type === 1 && m.fileUrl) {
+        if ((m.type === 1 || isImageFile) && m.fileUrl) {
             const fullUrl = m.fileUrl.startsWith('http') ? m.fileUrl : (serverBase + m.fileUrl);
             if (!roomPhotos.find(p => p.url === fullUrl)) {
                 roomPhotos.push({ url: fullUrl });
@@ -331,7 +332,7 @@
                 m.fileName.endsWith('.webm') || m.fileName.endsWith('.mp3') ||
                 m.fileName.endsWith('.wav') || m.fileName.endsWith('.ogg')
             );
-            if (!isAudio && !roomFiles.find(f => f.url === fullUrl)) {
+            if (!isAudio && !isImageFile && !roomFiles.find(f => f.url === fullUrl)) {
                 roomFiles.push({ url: fullUrl, name: m.fileName || 'File' });
                 infoChanged = true;
             }
@@ -432,12 +433,23 @@
                         m.fileName.endsWith('.webm') || m.fileName.endsWith('.mp3') ||
                         m.fileName.endsWith('.wav') || m.fileName.endsWith('.ogg')
                     );
+                    const isImage = m.fileName && /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(m.fileName);
                     if (isAudio) {
                         const audio = document.createElement('audio');
                         audio.controls = true;
                         audio.src = fullUrl;
                         audio.style.cssText = 'max-width:250px;margin-top:4px;border-radius:8px;';
                         contentWrap.appendChild(audio);
+                    } else if (isImage) {
+                        const imgWrap = document.createElement('div');
+                        imgWrap.className = 'msg-img-wrap';
+                        const img = document.createElement('img');
+                        img.src = fullUrl;
+                        img.alt = m.fileName || 'image';
+                        img.loading = 'lazy';
+                        img.addEventListener('click', () => openLightbox(fullUrl));
+                        imgWrap.appendChild(img);
+                        contentWrap.appendChild(imgWrap);
                     } else {
                         const fileLink = document.createElement('a');
                         fileLink.className = 'msg-file';
@@ -571,24 +583,47 @@
     function handleFileSelect(file, isImage) {
         if (!file) return;
 
+        const actuallyImage = isImage || file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file.name);
+
         if (isImage) {
             pendingFile = { file, type: 1, previewUrl: null };
             sendMessage();
             return;
         }
 
-        pendingFile = { file, type: 2, previewUrl: null };
-        if (previewFilename) previewFilename.textContent = file.name;
-        if (previewImage) previewImage.style.display = 'none';
-        if (fpFileIcon) fpFileIcon.style.display = 'flex';
-        if (filePreview) filePreview.style.display = 'flex';
+        if (actuallyImage) {
+            const previewUrl = URL.createObjectURL(file);
+            pendingFile = { file, type: 1, previewUrl };
+            if (previewFilename) previewFilename.textContent = file.name;
+            if (previewImage) {
+                previewImage.src = previewUrl;
+                previewImage.style.display = 'block';
+            }
+            if (fpFileIcon) fpFileIcon.style.display = 'none';
+            if (filePreview) filePreview.style.display = 'flex';
+        } else {
+            pendingFile = { file, type: 2, previewUrl: null };
+            if (previewFilename) previewFilename.textContent = file.name;
+            if (previewImage) {
+                previewImage.src = '';
+                previewImage.style.display = 'none';
+            }
+            if (fpFileIcon) fpFileIcon.style.display = 'flex';
+            if (filePreview) filePreview.style.display = 'flex';
+        }
         updateSendButtonMode();
     }
 
     function clearFilePreview() {
+        if (pendingFile && pendingFile.previewUrl) {
+            URL.revokeObjectURL(pendingFile.previewUrl);
+        }
         pendingFile = null;
         if (filePreview) filePreview.style.display = 'none';
-        if (previewImage) previewImage.style.display = 'none';
+        if (previewImage) {
+            previewImage.style.display = 'none';
+            previewImage.src = '';
+        }
         if (fpFileIcon) fpFileIcon.style.display = 'none';
         if (previewFilename) previewFilename.textContent = '';
         if (fileInput) fileInput.value = '';
