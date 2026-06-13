@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var config = builder.Configuration;
 var dbProvider = config["Database:Provider"] ?? "Sqlite";
-var uploadRoot = Path.GetFullPath(config["Storage:UploadPath"] ?? "uploads");
+var uploadRoot = Path.Combine(builder.Environment.ContentRootPath, config["Storage:UploadPath"] ?? "uploads");
 Directory.CreateDirectory(uploadRoot);
 
 // ─── Database ─────────────────────────────────────────────────────────

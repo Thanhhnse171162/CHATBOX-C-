@@ -1,312 +1,412 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Chatting Group - Ứng dụng chat nhóm real-time với SignalR">
-    <title>Chatting Group</title>
+    <title>Messenger</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css?v=5">
+    <script type="module" src="https://unpkg.com/emoji-picker-element@1"></script>
 </head>
+
 <body>
+
     <!-- ═══════ LOGIN SCREEN ═══════ -->
     <div id="login-screen" class="screen active">
         <div class="login-bg">
-            <div class="floating-orb orb-1"></div>
-            <div class="floating-orb orb-2"></div>
-            <div class="floating-orb orb-3"></div>
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
         </div>
-        <div class="login-card" id="login-card">
+        <div class="login-card">
             <div class="login-logo">
-                <div class="logo-icon">
-                    <svg viewBox="0 0 48 48" fill="none">
-                        <rect x="4" y="8" width="40" height="28" rx="6" fill="url(#logoGrad)"/>
-                        <path d="M16 36L12 42" stroke="url(#logoGrad)" stroke-width="3" stroke-linecap="round"/>
-                        <circle cx="16" cy="22" r="2.5" fill="white"/>
-                        <circle cx="24" cy="22" r="2.5" fill="white"/>
-                        <circle cx="32" cy="22" r="2.5" fill="white"/>
-                        <defs>
-                            <linearGradient id="logoGrad" x1="4" y1="8" x2="44" y2="36">
-                                <stop stop-color="#0084ff"/>
-                                <stop offset="1" stop-color="#00a2ff"/>
-                            </linearGradient>
-                        </defs>
+                <div class="logo-mark">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M24 4C12.954 4 4 12.3 4 22.5c0 5.8 2.9 11 7.5 14.4V44l6.6-3.6c1.9.5 3.8.8 5.9.8 11.046 0 20-8.3 20-18.5S35.046 4 24 4z"
+                            fill="white" />
+                        <path d="M21 28l-5-5.5 9.8-5.5L31 22.5 21.2 28z" fill="#0068FF" />
                     </svg>
                 </div>
-                <h1>Chatting Group</h1>
-                <p class="login-subtitle">Kết nối mọi lúc, mọi nơi</p>
+                <h1>Chat Group</h1>
+                <p>Đăng nhập tài khoản</p>
             </div>
-
-            <form id="login-form" autocomplete="off">
-                <div class="input-group">
-                    <label for="login-server-host">IP/Host Server</label>
-                    <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                            <line x1="6" y1="6" x2="6.01" y2="6"/>
-                            <line x1="6" y1="18" x2="6.01" y2="18"/>
+            <form id="login-form">
+                <div class="field-group" id="display-name-group" style="display:none">
+                    <label>Tên hiển thị</label>
+                    <div class="field-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                         </svg>
-                        <input type="text" id="login-server-host" placeholder="localhost:5000 hoặc IP radmin vpn" required>
+                        <input type="text" id="login-displayname" placeholder="Nhập tên hiển thị...">
                     </div>
                 </div>
-
-                <div class="input-group">
-                    <label for="login-username">Tên đăng nhập</label>
-                    <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
+                <div class="field-group">
+                    <label>Máy chủ</label>
+                    <div class="field-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="8" rx="2" />
+                            <rect x="2" y="14" width="20" height="8" rx="2" />
+                            <circle cx="6" cy="6" r="1" fill="currentColor" />
+                            <circle cx="6" cy="18" r="1" fill="currentColor" />
                         </svg>
-                        <input type="text" id="login-username" placeholder="Nhập username..." required>
+                        <input type="text" id="login-server-host" value="26.53.186.37:5000">
                     </div>
                 </div>
-
-                <div class="input-group">
-                    <label for="login-password">Mật khẩu</label>
-                    <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <div class="field-group">
+                    <label>Tên đăng nhập</label>
+                    <div class="field-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <input type="text" id="login-username" placeholder="Nhập tài khoản..." required>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Mật khẩu</label>
+                    <div class="field-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
                         <input type="password" id="login-password" placeholder="Nhập mật khẩu..." required>
+                        <button type="button" class="pw-toggle" id="pw-toggle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
-
-                <div class="input-group" id="display-name-group" style="display:none;">
-                    <label for="login-displayname">Tên hiển thị</label>
-                    <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 20h9"/>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                        </svg>
-                        <input type="text" id="login-displayname" placeholder="Tên hiển thị...">
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-primary" id="btn-login">
-                    <span>Đăng nhập</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                <div id="login-error" class="login-error" style="display:none"></div>
+                <button type="submit" class="btn-login" id="btn-login">
+                    <span id="btn-login-text">Đăng nhập</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="9 18 15 12 9 6" />
                     </svg>
                 </button>
             </form>
-
-            <div class="login-toggle">
+            <div class="login-footer">
                 <span id="toggle-text">Chưa có tài khoản?</span>
-                <button type="button" id="btn-toggle-register" class="btn-link">Đăng ký</button>
+                <button type="button" id="btn-toggle-register">Đăng ký ngay</button>
             </div>
-
-            <div id="login-error" class="error-msg" style="display:none;"></div>
         </div>
     </div>
 
     <!-- ═══════ CHAT SCREEN ═══════ -->
     <div id="chat-screen" class="screen">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-header">
-                <div class="user-profile" id="user-profile">
-                    <div class="avatar" id="user-avatar">U</div>
-                    <div class="user-info">
-                        <span class="user-name" id="user-display-name">User</span>
-                        <span class="user-status">
-                            <span class="status-dot online"></span> Online
-                        </span>
-                    </div>
+
+        <!-- Nav rail -->
+        <nav class="nav-rail">
+            <div class="nav-top">
+                <div class="nav-brand">
+                    <svg viewBox="0 0 32 32" fill="none">
+                        <path
+                            d="M16 3C9.373 3 4 8.04 4 14.2c0 3.84 1.94 7.28 5 9.54V28l4.4-2.42c.86.22 1.76.42 2.6.42 6.627 0 12-5.04 12-11.2S22.627 3 16 3z"
+                            fill="white" />
+                        <path d="M13.5 18l-3.3-3.65L16.5 11l3.3 3.65L13.5 18z" fill="#0068FF" />
+                    </svg>
                 </div>
-                <button class="icon-btn" id="btn-logout" title="Đăng xuất">
+                <button class="nav-item active" title="Tin nhắn" data-tip="Tin nhắn">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 2C6.477 2 2 6.145 2 11.243c0 2.9 1.449 5.493 3.71 7.19V22l3.337-1.835A11.4 11.4 0 0012 20.485c5.523 0 10-4.144 10-9.242S17.523 2 12 2z" />
+                    </svg>
+                    <span>Chat</span>
+                </button>
+                <div class="nav-avatar-wrap">
+                    <div class="nav-avatar" id="user-avatar">A</div>
+                    <span class="online-dot"></span>
+                </div>
+                <button class="nav-logout" id="btn-logout" title="Đăng xuất">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
                     </svg>
                 </button>
             </div>
+        </nav>
 
-            <div class="sidebar-search">
-                <div class="input-wrapper small">
-                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                    <input type="text" id="search-rooms" placeholder="Tìm phòng chat...">
-                </div>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="section-header">
-                    <h3>Phòng chat</h3>
-                    <button class="icon-btn small" id="btn-create-room" title="Tạo phòng mới">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-head">
+                <h2>Tin nhắn</h2>
+                <div class="sidebar-head-actions">
+                    <button class="hdr-btn" id="btn-create-room" title="Tạo nhóm chat">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19"/>
-                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <line x1="23" y1="11" x2="17" y2="11" />
+                            <line x1="20" y1="8" x2="20" y2="14" />
                         </svg>
                     </button>
                 </div>
-                <div id="room-list" class="room-list"></div>
             </div>
-
-            <div class="sidebar-section">
-                <div class="section-header">
-                    <h3>Người dùng</h3>
-                    <span class="badge" id="online-count">0</span>
+            <div class="sidebar-search">
+                <div class="search-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="search-rooms" placeholder="Tìm kiếm">
+                </div>
+            </div>
+            <div class="sidebar-tabs">
+                <button class="tab-btn active">Tất cả</button>
+            </div>
+            <div class="sidebar-rooms" id="room-list"></div>
+            <div class="sidebar-users">
+                <div class="users-head">
+                    <span>Người dùng online (<span id="online-count">0</span>)</span>
                 </div>
                 <div id="user-list" class="user-list"></div>
             </div>
         </aside>
 
-        <!-- Chat Main -->
-        <main id="chat-main" class="chat-main">
-            <!-- Empty State -->
-            <div id="empty-state" class="empty-state">
-                <div class="empty-illustration">
-                    <svg viewBox="0 0 200 200" fill="none">
-                        <circle cx="100" cy="100" r="80" fill="url(#emptyGrad)" opacity="0.1"/>
-                        <rect x="50" y="60" width="100" height="70" rx="12" fill="url(#emptyGrad)" opacity="0.3"/>
-                        <circle cx="75" cy="95" r="5" fill="white"/>
-                        <circle cx="100" cy="95" r="5" fill="white"/>
-                        <circle cx="125" cy="95" r="5" fill="white"/>
-                        <path d="M70 130L60 145" stroke="url(#emptyGrad)" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
-                        <defs>
-                            <linearGradient id="emptyGrad" x1="20" y1="20" x2="180" y2="180">
-                                <stop stop-color="#0084ff"/>
-                                <stop offset="1" stop-color="#00a2ff"/>
-                            </linearGradient>
-                        </defs>
+        <!-- Main Chat Area -->
+        <main class="chat-main" id="chat-main">
+
+            <!-- Empty state -->
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">
+                    <svg viewBox="0 0 80 80" fill="none">
+                        <circle cx="40" cy="40" r="36" fill="#EBF4FF" />
+                        <path
+                            d="M40 18C28.954 18 20 26.3 20 36.5c0 5.8 2.9 11 7.5 14.4V58l6.6-3.6c1.9.5 3.8.8 5.9.8 11.046 0 20-8.3 20-18.5S51.046 18 40 18z"
+                            fill="#0068FF" opacity=".3" />
+                        <path d="M37 44l-5-5.5 9.8-5.5L47 38.5 37.2 44z" fill="#0068FF" />
                     </svg>
                 </div>
-                <h2>Chào mừng đến Chatting Group!</h2>
-                <p>Chọn một phòng chat để bắt đầu trò chuyện</p>
+                <h3>Chào mừng bạn!</h3>
+                <p>Chọn một cuộc trò chuyện để bắt đầu nhắn tin</p>
             </div>
 
             <!-- Chat Header -->
-            <div id="chat-header" class="chat-header" style="display:none;">
-                <button class="icon-btn mobile-only" id="btn-back-sidebar">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 18 9 12 15 6"/>
+            <div class="chat-header" id="chat-header" style="display:none">
+                <button class="back-btn mobile-only" id="btn-back-sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6" />
                     </svg>
                 </button>
-                <div class="chat-room-info">
-                    <div class="room-avatar" id="room-avatar">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                <div class="chat-peer">
+                    <div class="peer-avatar" id="room-avatar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
                     </div>
-                    <div>
-                        <h3 id="chat-room-name">Room Name</h3>
-                        <span class="typing-indicator" id="typing-indicator" style="display:none;">
-                            <span class="typing-dots">
-                                <span></span><span></span><span></span>
-                            </span>
+                    <div class="peer-meta">
+                        <h3 id="chat-room-name">Tên phòng</h3>
+                        <div class="peer-status" id="typing-indicator" style="display:none">
+                            <span class="typing-dots"><i></i><i></i><i></i></span>
                             <span id="typing-text">đang nhập...</span>
-                        </span>
+                        </div>
+                        <div class="peer-status-online" id="peer-online">
+                            <span class="dot-online"></span> Đang hoạt động
+                        </div>
                     </div>
                 </div>
-                <div class="chat-header-actions">
-                    <button class="icon-btn" id="btn-voice-call" title="Gọi thoại">
+                <div class="chat-actions">
+
+                    <button class="action-btn" id="btn-info-toggle" title="Thông tin cuộc trò chuyện">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                        </svg>
-                    </button>
-                    <button class="icon-btn" id="btn-video-call" title="Gọi video">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="23 7 16 12 23 17 23 7"/>
-                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="6" x2="21" y2="6" />
+                            <line x1="8" y1="12" x2="21" y2="12" />
+                            <line x1="8" y1="18" x2="21" y2="18" />
+                            <line x1="3" y1="6" x2="3.01" y2="6" />
+                            <line x1="3" y1="12" x2="3.01" y2="12" />
+                            <line x1="3" y1="18" x2="3.01" y2="18" />
                         </svg>
                     </button>
                 </div>
             </div>
 
             <!-- Messages -->
-            <div id="chat-messages" class="chat-messages" style="display:none;">
-                <div id="messages-container"></div>
+            <div class="messages-scroll" id="chat-messages" style="display:none">
+                <div class="messages-inner" id="messages-container"></div>
             </div>
 
-            <!-- Input -->
-            <div id="chat-input-area" class="chat-input-area" style="display:none;">
-                <div class="input-toolbar">
-                    <label class="icon-btn" id="btn-attach" title="Đính kèm file">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                        </svg>
-                        <input type="file" id="file-input" style="display:none;">
-                    </label>
-                    <label class="icon-btn" id="btn-image" title="Gửi ảnh">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        <input type="file" id="image-input" accept="image/*" style="display:none;">
-                    </label>
-                </div>
-                <div class="message-compose">
-                    <div id="file-preview" class="file-preview" style="display:none;">
-                        <div class="file-preview-content">
-                            <img id="preview-image" src="" alt="" style="display:none;">
-                            <span id="preview-filename"></span>
-                        </div>
-                        <button class="icon-btn small" id="btn-cancel-file" title="Hủy">
+            <!-- Input Area -->
+            <div class="input-area" id="chat-input-area" style="display:none">
+                <!-- File preview -->
+                <div class="file-preview-bar" id="file-preview" style="display:none">
+                    <div class="fp-content">
+                        <img id="preview-image" src="" alt="" style="display:none">
+                        <div class="fp-file-icon" id="fp-file-icon" style="display:none">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                                <polyline points="13 2 13 9 20 9" />
+                            </svg>
+                        </div>
+                        <span id="preview-filename"></span>
+                    </div>
+                    <button class="fp-remove" id="btn-cancel-file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="input-toolbar">
+                    <label class="tool-btn" title="Đính kèm file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
+                        <input type="file" id="file-input" style="display:none">
+                    </label>
+                    <label class="tool-btn" title="Gửi ảnh">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <input type="file" id="image-input" accept="image/*" style="display:none">
+                    </label>
+                    <button class="tool-btn" id="btn-record-voice" title="Ghi âm">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="22"/>
+                            <line x1="8" y1="22" x2="16" y2="22"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="btn-sticker" title="Sticker">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M8 13s1.5 2 4 2 4-2 4-2" />
+                            <line x1="9" y1="9" x2="9.01" y2="9" stroke-width="3" stroke-linecap="round" />
+                            <line x1="15" y1="9" x2="15.01" y2="9" stroke-width="3" stroke-linecap="round" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Compose row -->
+                <div class="compose-row" style="position: relative;">
+                    <div id="emoji-picker-container" style="display:none; position:absolute; bottom: 60px; right: 0; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px;">
+                        <emoji-picker></emoji-picker>
+                    </div>
+                    <div class="compose-box">
+                        <textarea id="message-input" placeholder="Nhập tin nhắn..." rows="1"></textarea>
+                        <button class="emoji-btn" id="btn-emoji" type="button">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                                <line x1="9" y1="9" x2="9.01" y2="9" stroke-width="3" stroke-linecap="round" />
+                                <line x1="15" y1="9" x2="15.01" y2="9" stroke-width="3" stroke-linecap="round" />
                             </svg>
                         </button>
                     </div>
-                    <textarea id="message-input" placeholder="Nhập tin nhắn..." rows="1"></textarea>
-                    <button class="btn-send" id="btn-send" title="Gửi">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="22" y1="2" x2="11" y2="13"/>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    <button class="send-btn" id="btn-send" type="button">
+                        <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                        <svg class="like-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z" />
+                            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
                         </svg>
                     </button>
                 </div>
             </div>
+
         </main>
+
+        <!-- Right Info Sidebar -->
+        <aside class="chat-info-sidebar" id="chat-info-sidebar">
+            <div class="info-header">
+                <h3>Thông tin hội thoại</h3>
+            </div>
+            <div class="info-body">
+                <div class="info-profile">
+                    <div class="info-avatar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <div class="dot-online"></div>
+                    </div>
+                    <h2 id="info-room-name">Thế giới</h2>
+                </div>
+
+                <div class="info-section">
+                    <div class="section-hdr">
+                        <h4>Ảnh/Video</h4>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="section-content grid-photos" id="info-photos">
+                        <!-- Photos will be appended here -->
+                    </div>
+                </div>
+                <div class="info-section">
+                    <div class="section-hdr">
+                        <h4>File</h4>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="section-content list-files" id="info-files">
+                        <!-- Files will be appended here -->
+                    </div>
+                </div>
+                <div class="info-section">
+                    <div class="section-hdr">
+                        <h4>Link</h4>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="section-content list-links" id="info-links">
+                        <!-- Links will be appended here -->
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
 
-    <!-- ═══════ Create Room Modal ═══════ -->
-    <div id="modal-overlay" class="modal-overlay" style="display:none;">
-        <div class="modal" id="create-room-modal">
-            <div class="modal-header">
-                <h3>Tạo phòng chat mới</h3>
-                <button class="icon-btn" id="btn-close-modal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
+    <!-- ═══════ Modal tạo phòng ═══════ -->
+    <div id="modal-overlay" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <div class="modal-hdr">
+                <h3>Tạo nhóm chat mới</h3>
+                <button class="modal-close" id="btn-close-modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                 </button>
             </div>
             <div class="modal-body">
-                <div class="input-group">
-                    <label for="new-room-name">Tên phòng</label>
-                    <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                <div class="field-group">
+                    <label>Tên nhóm</label>
+                    <div class="field-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                         </svg>
-                        <input type="text" id="new-room-name" placeholder="Nhập tên phòng...">
+                        <input type="text" id="new-room-name" placeholder="Nhập tên nhóm...">
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" id="btn-cancel-create">Hủy</button>
-                <button class="btn-primary" id="btn-confirm-create">
-                    <span>Tạo phòng</span>
-                </button>
+            <div class="modal-ftr">
+                <button class="btn-cancel" id="btn-cancel-create">Hủy</button>
+                <button class="btn-confirm" id="btn-confirm-create">Tạo nhóm</button>
             </div>
         </div>
     </div>
 
-    <!-- ═══════ Toast Container ═══════ -->
+    <!-- Toast -->
     <div id="toast-container" class="toast-container"></div>
+    <span id="user-display-name" style="display:none"></span>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=2"></script>
 </body>
+
 </html>

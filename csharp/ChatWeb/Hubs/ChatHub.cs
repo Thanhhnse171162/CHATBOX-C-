@@ -176,11 +176,11 @@ public sealed class ChatHub : Hub
             await _db.SaveChangesAsync();
         }
 
-        // Send history
-        var messages = await _db.Messages
+        // Send history (latest 50 messages)
+        var messagesDesc = await _db.Messages
             .Where(m => m.RoomId == roomId)
-            .OrderBy(m => m.SentAtUtc)
-            .Take(200)
+            .OrderByDescending(m => m.SentAtUtc)
+            .Take(50)
             .Include(m => m.Sender)
             .Include(m => m.FileRecord)
             .Select(m => new
@@ -197,7 +197,8 @@ public sealed class ChatHub : Hub
             })
             .ToListAsync();
 
-        await Clients.Caller.SendAsync("History", roomId, messages);
+        messagesDesc.Reverse();
+        await Clients.Caller.SendAsync("History", roomId, messagesDesc);
     }
 
     // ── Send Message ──────────────────────────────────────────────────
